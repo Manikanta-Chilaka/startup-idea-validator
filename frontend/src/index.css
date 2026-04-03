@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root { --sidebar-width: 260px; }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3f3f46 transparent;
+  }
+  *::-webkit-scrollbar       { width: 5px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background-color: #3f3f46; border-radius: 10px; }
+
+  body {
+    @apply bg-[#09090b] text-slate-100 font-sans antialiased;
+  }
+}
+
+@layer components {
+  /* ─── Cards ──────────────────────────────────────────── */
+  .card {
+    @apply bg-zinc-900/90 border border-zinc-800 rounded-xl;
+  }
+  .card-hover {
+    @apply card transition-colors duration-200 hover:border-zinc-700 hover:bg-zinc-900;
+  }
+
+  /* ─── Sidebar ────────────────────────────────────────── */
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 text-sm font-medium
+           transition-colors duration-150 cursor-pointer
+           hover:bg-zinc-800 hover:text-zinc-100;
+  }
+  .sidebar-item-active {
+    @apply sidebar-item bg-zinc-800 text-zinc-100 border border-zinc-700;
+  }
+
+  /* ─── Progress Bar ───────────────────────────────────── */
+  .progress-bar-bg   { @apply w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden; }
+  .progress-bar-fill { @apply h-full rounded-full transition-all duration-700; }
+
+  /* ─── Badges ─────────────────────────────────────────── */
+  .badge-green  { @apply px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20; }
+  .badge-yellow { @apply px-2 py-0.5 rounded-md text-xs font-medium bg-amber-500/10   text-amber-400   border border-amber-500/20;  }
+  .badge-red    { @apply px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10     text-red-400     border border-red-500/20;    }
+  .badge-blue   { @apply px-2 py-0.5 rounded-md text-xs font-medium bg-blue-500/10    text-blue-400    border border-blue-500/20;   }
+
+  /* ─── Buttons ────────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white
+           bg-blue-600 hover:bg-blue-500
+           transition-colors duration-150 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-zinc-400
+           hover:text-zinc-100 hover:bg-zinc-800 transition-colors duration-150;
+  }
+
+  /* ─── Input ──────────────────────────────────────────── */
+  .input-dark {
+    @apply w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-slate-100
+           placeholder-zinc-600 focus:outline-none focus:border-blue-500/70 focus:ring-1 focus:ring-blue-500/20
+           transition-colors duration-150;
+  }
+  .label-dark    { @apply block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2; }
+  .section-title { @apply text-xs font-semibold text-zinc-500 uppercase tracking-widest; }
+
+  /* ─── Animations ─────────────────────────────────────── */
+  .animate-fade-in  { animation: fadeIn  0.3s ease-out both; }
+  .animate-slide-up { animation: slideUp 0.3s ease-out both; }
+
+  @keyframes fadeIn  { from { opacity: 0; }                            to { opacity: 1; }                       }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  .stagger > *:nth-child(1) { animation: fadeIn 0.3s ease-out 0.04s both; }
+  .stagger > *:nth-child(2) { animation: fadeIn 0.3s ease-out 0.08s both; }
+  .stagger > *:nth-child(3) { animation: fadeIn 0.3s ease-out 0.12s both; }
+  .stagger > *:nth-child(4) { animation: fadeIn 0.3s ease-out 0.16s both; }
+  .stagger > *:nth-child(5) { animation: fadeIn 0.3s ease-out 0.20s both; }
+}
+
+@media print {
+  aside, header, .no-print-buttons { display: none !important; }
+  body { background: #09090b !important; }
+  .card, .card-hover { break-inside: avoid; }
+}
