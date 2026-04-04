@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 def _client() -> AsyncGroq:
     return AsyncGroq(api_key=os.environ["GROQ_API_KEY"])
 
+# Limit concurrent Groq calls to avoid free-tier rate limits (429)
+_groq_sem = asyncio.Semaphore(2)
+
 
 def strip_emojis(text: str) -> str:
     pattern = re.compile(
@@ -71,16 +74,27 @@ async def call_agent(agent_role: str, role_context: str, evaluation_criteria: st
     )
     logger.info(f"Calling Groq for agent: {agent_role}")
     try:
-        response = await _client().chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": full_prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.85,
-            max_tokens=1024,
-        )
+        async with _groq_sem:
+            for attempt in range(3):
+                try:
+                    response = await _client().chat.completions.create(
+                        model=MODEL,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user",   "content": full_prompt},
+                        ],
+                        response_format={"type": "json_object"},
+                        temperature=0.85,
+                        max_tokens=1024,
+                    )
+                    break
+                except Exception as e:
+                    if "429" in str(e) and attempt < 2:
+                        wait = 2 ** attempt  # 1s, 2s
+                        logger.warning(f"Rate limited, retrying in {wait}s ({agent_role})")
+                        await asyncio.sleep(wait)
+                    else:
+                        raise
         parsed = json.loads(response.choices[0].message.content)
         return AgentResponse(
             agent_name=strip_emojis(agent_role),
