@@ -212,10 +212,12 @@ def _tavily_search(query: str, max_results: int = 5) -> str:
 
 async def research_competitors(idea: str) -> CompetitorReport:
     # Run two searches in parallel: competitors + market overview
+    from datetime import datetime
+    current_year = datetime.now().year
     loop = asyncio.get_event_loop()
     competitor_results, market_results = await asyncio.gather(
-        loop.run_in_executor(None, _tavily_search, f"top competitors startups companies in {idea} market 2024", 6),
-        loop.run_in_executor(None, _tavily_search, f"{idea} market size trends growth opportunities", 4),
+        loop.run_in_executor(None, _tavily_search, f"top competitors startups companies in {idea} market {current_year}", 6),
+        loop.run_in_executor(None, _tavily_search, f"{idea} market size trends growth opportunities {current_year}", 4),
     )
 
     has_real_data = bool(competitor_results or market_results)
