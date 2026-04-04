@@ -30,7 +30,7 @@ export default function App() {
   const [isLoading, setIsLoading]     = useState(false);
   const [error, setError]             = useState(null);
   const [activeNav, setActiveNav]     = useState('dashboard');
-  const [health, setHealth]           = useState({ backend: false, ollama: false, tavily: false, checked: false });
+  const [health, setHealth]           = useState({ backend: false, ollama: false, tavily: false, model: '', checked: false });
   const [ideaHistory, setIdeaHistory] = useState(loadHistory);
   const [progress, setProgress]       = useState({ status: '', agents: [], completedAgents: [], activeAgent: null });
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -301,7 +301,7 @@ export default function App() {
                   <span className={`text-xs font-medium px-2 py-1 rounded-md shrink-0 ${health.backend ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.backend ? 'Online' : 'Offline'}</span>
                 </div>
                 <div className="px-4 py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0"><p className="text-sm text-zinc-300">Groq AI</p><p className="text-xs text-zinc-600 truncate">llama-3.3-70b-versatile</p></div>
+                  <div className="min-w-0"><p className="text-sm text-zinc-300">Groq AI</p><p className="text-xs text-zinc-600 truncate">{health.model || 'llama-3.3-70b-versatile'}</p></div>
                   <span className={`text-xs font-medium px-2 py-1 rounded-md shrink-0 ${health.ollama ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.ollama ? 'Connected' : 'Disconnected'}</span>
                 </div>
                 <div className="px-4 py-3 flex items-center justify-between gap-3">

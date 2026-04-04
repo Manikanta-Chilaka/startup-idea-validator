@@ -5,13 +5,13 @@ const EXAMPLE_IDEAS = [
   {
     idea: "AI nutrition platform for women's hormonal health",
     target_audience: 'Women aged 25–45 managing hormonal conditions like PCOS or menopause',
-    revenue_model: 'SaaS subscription — Freemium + Pro at $12/month',
+    revenue_model: 'SaaS subscription with freemium and paid pro tier',
     problem_statement: 'Women with hormonal imbalances lack personalised nutrition guidance that accounts for their cycle and symptoms.',
   },
   {
     idea: 'Blockchain-based carbon credit marketplace for SMEs',
     target_audience: 'Small and medium enterprises seeking affordable carbon offsetting',
-    revenue_model: 'Transaction fee of 2% on each credit traded',
+    revenue_model: 'Transaction fee on each credit traded',
     problem_statement: 'Existing carbon credit markets are inaccessible and opaque for SMEs due to high entry costs and complex verification.',
   },
   {

@@ -17,9 +17,11 @@ from agents import evaluate_idea, stream_evaluate_idea, research_competitors
 
 app = FastAPI(title="AI Startup Idea Validator API")
 
+_allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For MVP, allow all origins
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,9 +34,10 @@ def read_root():
 @app.get("/api/health")
 async def health_check():
     """Check whether the backend is up and API keys are configured."""
+    from agents import MODEL
     groq_ok   = bool(os.environ.get("GROQ_API_KEY"))
     tavily_ok = bool(os.environ.get("TAVILY_API_KEY"))
-    return {"backend": True, "ollama": groq_ok, "tavily": tavily_ok}
+    return {"backend": True, "ollama": groq_ok, "tavily": tavily_ok, "model": MODEL}
 
 @app.post("/api/evaluate", response_model=EvaluationReport)
 async def generate_evaluation(idea: IdeaInput):
