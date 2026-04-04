@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Radar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -106,6 +106,55 @@ function agentIcon(name) {
   if (n.includes('market') || n.includes('growth'))  return { Icon: BarChart2,   color: 'text-cyan-400',    bg: 'bg-cyan-500/10'    };
   if (n.includes('legal') || n.includes('regulat'))  return { Icon: Shield,      color: 'text-amber-400',   bg: 'bg-amber-500/10'   };
   return { Icon: User, color: 'text-zinc-400', bg: 'bg-zinc-800' };
+}
+
+function AgentCard({ agent }) {
+  const [expanded, setExpanded] = useState(false);
+  const { Icon, color, bg } = agentIcon(agent.agent_name);
+  const conf = Math.round((agent.interest_score / 10) * 100);
+  const isLong = agent.feedback.length > 120;
+
+  return (
+    <div className="card p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-2.5">
+        <div className={`p-1.5 rounded-lg ${bg}`}><Icon className={`w-4 h-4 ${color}`} /></div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-zinc-200 truncate">{agent.agent_name}</p>
+          <p className="text-xs text-zinc-600">{agent.interest_score}/10</p>
+        </div>
+        <ScoreRing score={agent.interest_score * 10} size={40} />
+      </div>
+
+      <div>
+        <p className={`text-xs text-zinc-500 leading-relaxed italic ${!expanded ? 'line-clamp-3' : ''}`}>
+          "{agent.feedback}"
+        </p>
+        {isLong && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="text-xs text-blue-400 hover:text-blue-300 mt-1 transition-colors"
+          >
+            {expanded ? 'Show less' : 'Read more'}
+          </button>
+        )}
+      </div>
+
+      {agent.concerns[0] && (
+        <div className="border border-red-500/15 rounded-lg p-2.5 bg-red-500/5">
+          <p className="text-xs text-red-400 font-medium mb-0.5">Key concern</p>
+          <p className="text-xs text-zinc-500 leading-snug line-clamp-2">{agent.concerns[0]}</p>
+        </div>
+      )}
+
+      <div>
+        <div className="flex justify-between mb-1">
+          <span className="text-xs text-zinc-600">Confidence</span>
+          <span className="text-xs text-zinc-400">{conf}%</span>
+        </div>
+        <Bar value={conf} color={conf >= 65 ? 'emerald' : conf >= 40 ? 'amber' : 'red'} />
+      </div>
+    </div>
+  );
 }
 
 // ─── Main ─────────────────────────────────────────────────
@@ -240,36 +289,9 @@ export default function Dashboard({ report, onReset }) {
       <div>
         <p className="section-title mb-3">Agent Insights</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 stagger">
-          {agent_responses.map((agent, i) => {
-            const { Icon, color, bg } = agentIcon(agent.agent_name);
-            const conf = Math.round((agent.interest_score / 10) * 100);
-            return (
-              <div key={i} className="card p-4 flex flex-col gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className={`p-1.5 rounded-lg ${bg}`}><Icon className={`w-4 h-4 ${color}`} /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-200 truncate">{agent.agent_name}</p>
-                    <p className="text-xs text-zinc-600">{agent.interest_score}/10</p>
-                  </div>
-                  <ScoreRing score={agent.interest_score * 10} size={40} />
-                </div>
-                <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3 italic">"{agent.feedback}"</p>
-                {agent.concerns[0] && (
-                  <div className="border border-red-500/15 rounded-lg p-2.5 bg-red-500/5">
-                    <p className="text-xs text-red-400 font-medium mb-0.5">Key concern</p>
-                    <p className="text-xs text-zinc-500 leading-snug">{agent.concerns[0]}</p>
-                  </div>
-                )}
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-xs text-zinc-600">Confidence</span>
-                    <span className="text-xs text-zinc-400">{conf}%</span>
-                  </div>
-                  <Bar value={conf} color={conf >= 65 ? 'emerald' : conf >= 40 ? 'amber' : 'red'} />
-                </div>
-              </div>
-            );
-          })}
+          {agent_responses.map((agent, i) => (
+            <AgentCard key={i} agent={agent} />
+          ))}
         </div>
       </div>
 
