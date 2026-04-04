@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, PlusCircle, History, FileText,
   Settings, Bell, Search, ChevronDown,
-  LogOut, Trash2, Clock, AlertCircle,
+  Trash2, Clock, AlertCircle,
   CheckCircle2, Loader2, Zap
 } from 'lucide-react';
 import IdeaForm from './components/IdeaForm';
@@ -60,7 +60,7 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to generate report. Make sure Ollama (mistral) and the backend are running.');
+      setError('Failed to generate report. Make sure the backend is running and Groq API key is set.');
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +71,7 @@ export default function App() {
   const handleLoadHistory = (entry) => { setReport(entry.report); setActiveNav('dashboard'); };
   const handleClearHistory = () => { setIdeaHistory([]); saveHistory([]); };
 
-  const aiLabel = !health.checked ? 'Checking...' : health.ollama ? 'Connected' : health.backend ? 'Ollama offline' : 'Backend offline';
+  const aiLabel = !health.checked ? 'Checking...' : health.ollama ? 'Connected' : health.backend ? 'Groq offline' : 'Backend offline';
   const aiOk    = health.ollama;
 
   return (
@@ -107,19 +107,11 @@ export default function App() {
         <div className="mx-2 mb-3 px-3 py-2.5 rounded-lg bg-zinc-800/60 border border-zinc-800">
           <div className="flex items-center gap-2">
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${aiOk ? 'bg-emerald-400' : 'bg-red-400'}`} />
-            <span className="text-xs text-zinc-400">Ollama Mistral</span>
+            <span className="text-xs text-zinc-400">Groq AI</span>
             <span className={`ml-auto text-xs font-medium ${aiOk ? 'text-emerald-400' : 'text-red-400'}`}>{aiLabel}</span>
           </div>
         </div>
 
-        {/* User */}
-        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-zinc-800 cursor-pointer transition-colors group mx-0">
-          <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-300 text-xs font-semibold">F</div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-200 truncate">Founder</p>
-          </div>
-          <LogOut className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
-        </div>
       </aside>
 
       {/* ── Main ────────────────────────────────────────── */}
@@ -269,8 +261,8 @@ export default function App() {
                   <span className={`text-xs font-medium px-2 py-1 rounded-md ${health.backend ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.backend ? 'Online' : 'Offline'}</span>
                 </div>
                 <div className="px-4 py-3 flex items-center justify-between">
-                  <div><p className="text-sm text-zinc-300">Ollama (Mistral)</p><p className="text-xs text-zinc-600">http://localhost:11434</p></div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-md ${health.ollama ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.ollama ? 'Online' : 'Offline'}</span>
+                  <div><p className="text-sm text-zinc-300">Groq AI</p><p className="text-xs text-zinc-600">api.groq.com (llama-3.3-70b-versatile)</p></div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-md ${health.ollama ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.ollama ? 'Connected' : 'Disconnected'}</span>
                 </div>
               </div>
               <div className="card divide-y divide-zinc-800">
