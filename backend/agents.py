@@ -38,13 +38,26 @@ def strip_emojis(text: str) -> str:
 async def call_agent(system_prompt: str, user_prompt: str, agent_name: str) -> AgentResponse:
     full_prompt = (
         f"{user_prompt}\n\n"
-        "Respond strictly in valid JSON with these keys:\n"
+        "Evaluate critically and honestly from your role's perspective. Do NOT default to average scores.\n\n"
+        "Respond strictly in valid JSON with these keys:\n\n"
         "- interest_score (int 1-10)\n"
+        "  1-3 = not interested, poor fit for your role\n"
+        "  4-6 = lukewarm, needs significant work\n"
+        "  7-8 = genuinely interested, strong potential\n"
+        "  9-10 = exceptional, would act on this immediately\n\n"
         "- risk_score (int 1-10)\n"
+        "  1-3 = proven market, clear demand, low execution risk\n"
+        "  4-6 = moderate uncertainty, typical startup challenges\n"
+        "  7-8 = unproven market, high capital or regulatory risk\n"
+        "  9-10 = extremely risky, high chance of failure\n\n"
         "- adoption_probability (int 0-100)\n"
-        "- concerns (list of strings)\n"
-        "- opportunities (list of strings)\n"
-        "- feedback (string)"
+        "  0-30 = most people would ignore or reject this\n"
+        "  31-55 = niche appeal, slow adoption likely\n"
+        "  56-75 = solid mainstream potential with right execution\n"
+        "  76-100 = viral or near-guaranteed adoption\n\n"
+        "- concerns (list of 2-4 specific, actionable strings)\n"
+        "- opportunities (list of 2-3 specific, actionable strings)\n"
+        "- feedback (string: 2-3 sentences, direct and specific to this idea)"
     )
     logger.info(f"Calling Groq for agent: {agent_name}")
     try:
@@ -84,7 +97,9 @@ async def call_agent(system_prompt: str, user_prompt: str, agent_name: str) -> A
 async def generate_agent_roles(idea_input: IdeaInput) -> List[dict]:
     system = (
         "You are an expert startup advisor. Analyse the startup idea and identify "
-        "the 4 to 6 most critical stakeholders who should evaluate it for a 360-degree review."
+        "the 4 to 6 most critical stakeholders who should evaluate it for a 360-degree review. "
+        "Each agent must have a distinct, opinionated perspective — some should be skeptical or critical, "
+        "not all optimistic. Include at least one skeptic (e.g. a competitor, regulator, or burned customer)."
     )
     user = (
         f"Startup Idea: {idea_input.idea}\n"
