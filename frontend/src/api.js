@@ -16,7 +16,7 @@ export const checkHealth = async () => {
     const response = await api.get('/health');
     return response.data;
   } catch {
-    return { backend: false, ollama: false };
+    return { backend: false, ollama: false, tavily: false };
   }
 };
 

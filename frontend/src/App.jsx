@@ -30,7 +30,7 @@ export default function App() {
   const [isLoading, setIsLoading]     = useState(false);
   const [error, setError]             = useState(null);
   const [activeNav, setActiveNav]     = useState('dashboard');
-  const [health, setHealth]           = useState({ backend: false, ollama: false, checked: false });
+  const [health, setHealth]           = useState({ backend: false, ollama: false, tavily: false, checked: false });
   const [ideaHistory, setIdeaHistory] = useState(loadHistory);
   const [progress, setProgress]       = useState({ status: '', agents: [], completedAgents: [], activeAgent: null });
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -303,6 +303,10 @@ export default function App() {
                 <div className="px-4 py-3 flex items-center justify-between gap-3">
                   <div className="min-w-0"><p className="text-sm text-zinc-300">Groq AI</p><p className="text-xs text-zinc-600 truncate">llama-3.3-70b-versatile</p></div>
                   <span className={`text-xs font-medium px-2 py-1 rounded-md shrink-0 ${health.ollama ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.ollama ? 'Connected' : 'Disconnected'}</span>
+                </div>
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0"><p className="text-sm text-zinc-300">Tavily Search</p><p className="text-xs text-zinc-600 truncate">Real-time competitor research</p></div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-md shrink-0 ${health.tavily ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'}`}>{health.tavily ? 'Connected' : 'Key not set'}</span>
                 </div>
               </div>
               <div className="card divide-y divide-zinc-800">

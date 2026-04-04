@@ -6,6 +6,7 @@ import os
 from typing import List
 from groq import AsyncGroq
 from dotenv import load_dotenv
+from tavily import TavilyClient
 from models import IdeaInput, AgentResponse, EvaluationReport, Competitor, CompetitorReport
 
 load_dotenv()
@@ -187,17 +188,55 @@ def _build_report(idea_input: IdeaInput, agents_data: List[AgentResponse]) -> Ev
     )
 
 
-# ── Competitor research ───────────────────────────────────────────────────────
+# ── Competitor research (Tavily → Groq) ──────────────────────────────────────
+
+def _tavily_search(query: str, max_results: int = 5) -> str:
+    """Run a Tavily search and return a condensed text block of results."""
+    tavily_key = os.environ.get("TAVILY_API_KEY", "")
+    if not tavily_key:
+        return ""
+    try:
+        client = TavilyClient(api_key=tavily_key)
+        results = client.search(query=query, max_results=max_results, search_depth="basic")
+        snippets = []
+        for r in results.get("results", []):
+            title   = r.get("title", "")
+            content = r.get("content", "")[:300]
+            url     = r.get("url", "")
+            snippets.append(f"- {title}: {content} ({url})")
+        return "\n".join(snippets)
+    except Exception as e:
+        logger.warning(f"Tavily search failed: {e}")
+        return ""
+
 
 async def research_competitors(idea: str) -> CompetitorReport:
+    # Run two searches in parallel: competitors + market overview
+    loop = asyncio.get_event_loop()
+    competitor_results, market_results = await asyncio.gather(
+        loop.run_in_executor(None, _tavily_search, f"top competitors startups companies in {idea} market 2024", 6),
+        loop.run_in_executor(None, _tavily_search, f"{idea} market size trends growth opportunities", 4),
+    )
+
+    has_real_data = bool(competitor_results or market_results)
+    source_note   = "real web search results from Tavily" if has_real_data else "your training knowledge (Tavily API key not set)"
+
+    search_context = ""
+    if competitor_results:
+        search_context += f"\n\nWEB SEARCH RESULTS — Competitors:\n{competitor_results}"
+    if market_results:
+        search_context += f"\n\nWEB SEARCH RESULTS — Market:\n{market_results}"
+
     system = (
-        "You are a competitive intelligence analyst. Based on your training knowledge, "
-        "identify real existing companies that compete with the given startup idea. "
-        "Name real companies where they exist. Be honest if a space is new with few players."
+        "You are a competitive intelligence analyst. "
+        "Analyse the provided web search results and extract structured competitor intelligence. "
+        "Prioritise information from the search results. Fill gaps with your training knowledge "
+        "but always prefer real data. Name real companies only."
     )
     user = (
-        f"Startup Idea: {idea}\n\n"
-        "Identify 3 to 5 real or likely competitors. For each provide:\n"
+        f"Startup Idea: {idea}\n"
+        f"{search_context}\n\n"
+        "Using the search results above, identify 3 to 5 real competitors. For each provide:\n"
         "- name: the real company name\n"
         "- description: one sentence about what they do\n"
         "- strengths: list of 2-3 key strengths\n"
@@ -209,7 +248,7 @@ async def research_competitors(idea: str) -> CompetitorReport:
         "Return valid JSON with keys: competitors (list), market_gap (string), your_advantage (string)"
     )
     try:
-        logger.info("Researching competitors via Groq...")
+        logger.info(f"Researching competitors using {source_note}...")
         response = await _client().chat.completions.create(
             model=MODEL,
             messages=[
@@ -217,8 +256,8 @@ async def research_competitors(idea: str) -> CompetitorReport:
                 {"role": "user",   "content": user},
             ],
             response_format={"type": "json_object"},
-            temperature=0.4,
-            max_tokens=1500,
+            temperature=0.3,
+            max_tokens=2000,
         )
         parsed = json.loads(response.choices[0].message.content)
         competitors = [

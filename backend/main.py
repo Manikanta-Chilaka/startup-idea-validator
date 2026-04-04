@@ -31,9 +31,10 @@ def read_root():
 
 @app.get("/api/health")
 async def health_check():
-    """Check whether the backend is up and Groq API key is configured."""
-    groq_ok = bool(os.environ.get("GROQ_API_KEY"))
-    return {"backend": True, "ollama": groq_ok}   # reuse 'ollama' key so frontend needs no changes
+    """Check whether the backend is up and API keys are configured."""
+    groq_ok   = bool(os.environ.get("GROQ_API_KEY"))
+    tavily_ok = bool(os.environ.get("TAVILY_API_KEY"))
+    return {"backend": True, "ollama": groq_ok, "tavily": tavily_ok}
 
 @app.post("/api/evaluate", response_model=EvaluationReport)
 async def generate_evaluation(idea: IdeaInput):
