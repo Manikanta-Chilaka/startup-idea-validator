@@ -203,15 +203,20 @@ export default function Dashboard({ report, onReset }) {
 
   const avgRisk = agent_responses.reduce((s, a) => s + a.risk_score, 0) / agent_responses.length;
 
+  const radarLabels = agent_responses.map(a => {
+    const name = a.agent_name.replace(/ Agent$/i, '');
+    return name.length > 12 ? name.slice(0, 12) + '…' : name;
+  });
   const radarData = {
-    labels: agent_responses.map(a => a.agent_name.replace(/ Agent$/i, '')),
+    labels: radarLabels,
     datasets: [
       { label: 'Interest (%)', data: agent_responses.map(a => a.interest_score * 10), backgroundColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.8)', borderWidth: 2, pointBackgroundColor: '#3b82f6', pointRadius: 3 },
       { label: 'Adoption (%)', data: agent_responses.map(a => a.adoption_probability), backgroundColor: 'rgba(148,163,184,0.05)', borderColor: 'rgba(148,163,184,0.5)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#94a3b8', pointRadius: 3 },
     ],
   };
   const radarOpts = {
-    scales: { r: { min: 0, max: 100, angleLines: { color: 'rgba(255,255,255,0.05)' }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false }, pointLabels: { color: '#71717a', font: { size: 11, family: 'Inter' } } } },
+    layout: { padding: { top: 12, bottom: 12, left: 16, right: 16 } },
+    scales: { r: { min: 0, max: 100, angleLines: { color: 'rgba(255,255,255,0.05)' }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false }, pointLabels: { color: '#71717a', font: { size: 10, family: 'Inter' }, padding: 8 } } },
     plugins: { legend: { labels: { color: '#52525b', font: { size: 11 } } } },
   };
 
@@ -276,7 +281,7 @@ export default function Dashboard({ report, onReset }) {
             </div>
             <span className="badge-blue">{agent_responses.length} agents</span>
           </div>
-          <div className="h-[240px]"><Radar data={radarData} options={radarOpts} /></div>
+          <div className="h-[280px]"><Radar data={radarData} options={radarOpts} /></div>
         </div>
         <div className="card p-4">
           <p className="text-sm font-semibold text-zinc-200 mb-1">Risk Distribution</p>
