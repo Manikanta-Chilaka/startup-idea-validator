@@ -10,7 +10,7 @@ from models import IdeaInput, AgentResponse, EvaluationReport
 
 load_dotenv()
 
-MODEL = "mixtral-8x7b-32768"   # fast, free-tier Groq model
+MODEL = "llama-3.3-70b-versatile"  # Groq's current recommended model
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
