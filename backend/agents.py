@@ -35,31 +35,40 @@ def strip_emojis(text: str) -> str:
 
 # ── Core LLM call ────────────────────────────────────────────────────────────
 
-async def call_agent(system_prompt: str, user_prompt: str, agent_name: str) -> AgentResponse:
-    full_prompt = (
-        f"{user_prompt}\n\n"
-        "Evaluate critically and honestly from your role's perspective. Do NOT default to average scores.\n\n"
-        "Respond strictly in valid JSON with these keys:\n\n"
-        "- interest_score (int 1-10)\n"
-        "  1-3 = not interested, poor fit for your role\n"
-        "  4-6 = lukewarm, needs significant work\n"
-        "  7-8 = genuinely interested, strong potential\n"
-        "  9-10 = exceptional, would act on this immediately\n\n"
-        "- risk_score (int 1-10)\n"
-        "  1-3 = proven market, clear demand, low execution risk\n"
-        "  4-6 = moderate uncertainty, typical startup challenges\n"
-        "  7-8 = unproven market, high capital or regulatory risk\n"
-        "  9-10 = extremely risky, high chance of failure\n\n"
-        "- adoption_probability (int 0-100)\n"
-        "  0-30 = most people would ignore or reject this\n"
-        "  31-55 = niche appeal, slow adoption likely\n"
-        "  56-75 = solid mainstream potential with right execution\n"
-        "  76-100 = viral or near-guaranteed adoption\n\n"
-        "- concerns (list of 2-4 specific, actionable strings)\n"
-        "- opportunities (list of 2-3 specific, actionable strings)\n"
-        "- feedback (string: 2-3 sentences, direct and specific to this idea)"
+async def call_agent(agent_role: str, role_context: str, evaluation_criteria: str, idea_context: str) -> AgentResponse:
+    system_prompt = (
+        f"You are {agent_role}. {role_context} "
+        "You have strong opinions and give honest, critical assessments. "
+        "You do NOT give polite or average scores — you score based on your real-world experience and perspective."
     )
-    logger.info(f"Calling Groq for agent: {agent_name}")
+    full_prompt = (
+        f"STARTUP IDEA TO EVALUATE:\n{idea_context}\n\n"
+        f"YOUR IDENTITY: {agent_role}\n"
+        f"YOUR BACKGROUND: {role_context}\n"
+        f"EVALUATE SPECIFICALLY ON: {evaluation_criteria}\n\n"
+        "Score strictly from YOUR role's viewpoint — a skeptical investor scores very differently from an "
+        "excited early adopter. Do NOT give neutral scores. Be direct and honest.\n\n"
+        "Respond in valid JSON with these keys:\n\n"
+        "interest_score (int 1-10):\n"
+        "  1-3 = you would never back/use/recommend this\n"
+        "  4-6 = lukewarm, major concerns from YOUR perspective\n"
+        "  7-8 = genuinely interested from YOUR role's standpoint\n"
+        "  9-10 = exceptional, you would act on this immediately\n\n"
+        "risk_score (int 1-10) — risk as YOU perceive it from your role:\n"
+        "  1-3 = low risk, proven model, clear demand\n"
+        "  4-6 = moderate risk, typical startup uncertainty\n"
+        "  7-8 = high risk, major unknowns or structural problems\n"
+        "  9-10 = extremely risky, likely to fail\n\n"
+        "adoption_probability (int 0-100) — from YOUR perspective:\n"
+        "  0-30 = your stakeholder group would ignore or reject this\n"
+        "  31-55 = niche appeal, slow uptake\n"
+        "  56-75 = solid potential with right execution\n"
+        "  76-100 = strong demand, fast adoption\n\n"
+        "concerns (list of 2-4 strings): specific issues from YOUR role's viewpoint\n"
+        "opportunities (list of 2-3 strings): specific upsides YOU see\n"
+        "feedback (string): 2-3 sentences, blunt and specific to this idea from YOUR perspective"
+    )
+    logger.info(f"Calling Groq for agent: {agent_role}")
     try:
         response = await _client().chat.completions.create(
             model=MODEL,
@@ -68,12 +77,12 @@ async def call_agent(system_prompt: str, user_prompt: str, agent_name: str) -> A
                 {"role": "user",   "content": full_prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.7,
+            temperature=0.85,
             max_tokens=1024,
         )
         parsed = json.loads(response.choices[0].message.content)
         return AgentResponse(
-            agent_name=strip_emojis(agent_name),
+            agent_name=strip_emojis(agent_role),
             interest_score=int(parsed.get("interest_score", 5)),
             risk_score=int(parsed.get("risk_score", 5)),
             adoption_probability=int(parsed.get("adoption_probability", 50)),
@@ -82,9 +91,9 @@ async def call_agent(system_prompt: str, user_prompt: str, agent_name: str) -> A
             feedback=strip_emojis(parsed.get("feedback", "No feedback provided.")),
         )
     except Exception as e:
-        logger.error(f"Error calling {agent_name}: {e}")
+        logger.error(f"Error calling {agent_role}: {e}")
         return AgentResponse(
-            agent_name=agent_name,
+            agent_name=agent_role,
             interest_score=5, risk_score=5, adoption_probability=50,
             concerns=["Failed to generate response"],
             opportunities=["Failed to generate response"],
@@ -190,9 +199,10 @@ async def evaluate_idea(idea_input: IdeaInput) -> EvaluationReport:
     generated_agents = await generate_agent_roles(idea_input)
     agents_data = list(await asyncio.gather(*[
         call_agent(
-            f"{s['context']} Evaluate focusing on: {s['evaluation_criteria']}",
-            context,
-            s.get("role", "Agent"),
+            agent_role=s.get("role", "Agent"),
+            role_context=s.get("context", ""),
+            evaluation_criteria=s.get("evaluation_criteria", ""),
+            idea_context=context,
         )
         for s in generated_agents
     ]))
@@ -215,8 +225,10 @@ async def stream_evaluate_idea(idea_input: IdeaInput, queue: asyncio.Queue) -> N
             name = agent_spec.get("role", "Agent")
             await queue.put({"type": "agent_start", "name": name})
             result = await call_agent(
-                f"{agent_spec['context']} Evaluate focusing on: {agent_spec['evaluation_criteria']}",
-                context, name,
+                agent_role=name,
+                role_context=agent_spec.get("context", ""),
+                evaluation_criteria=agent_spec.get("evaluation_criteria", ""),
+                idea_context=context,
             )
             await queue.put({"type": "agent_done", "name": name})
             return result
