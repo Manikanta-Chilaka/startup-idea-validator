@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import IdeaForm from './components/IdeaForm';
 import Dashboard from './components/Dashboard';
+import ScoreTrend from './components/ScoreTrend';
 import { evaluateIdeaStream, checkHealth } from './api';
 
 const NAV_ITEMS = [
@@ -232,6 +233,7 @@ export default function App() {
                 <div><p className="section-title">History</p><h2 className="text-lg font-semibold text-zinc-100 mt-1">Past Analyses</h2></div>
                 {ideaHistory.length > 0 && <button onClick={handleClearHistory} className="btn-ghost text-red-400 hover:text-red-300 text-xs"><Trash2 className="w-3.5 h-3.5" /> Clear all</button>}
               </div>
+              <ScoreTrend history={ideaHistory} />
               {ideaHistory.length === 0 ? (
                 <div className="card p-12 flex flex-col items-center gap-2 text-center">
                   <History className="w-8 h-8 text-zinc-700 mb-1" />

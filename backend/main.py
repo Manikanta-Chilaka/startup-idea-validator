@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Ensure relative imports work if we run from the backend directory
-from models import IdeaInput, EvaluationReport
-from agents import evaluate_idea, stream_evaluate_idea
+from models import IdeaInput, EvaluationReport, CompetitorReport
+from agents import evaluate_idea, stream_evaluate_idea, research_competitors
 
 app = FastAPI(title="AI Startup Idea Validator API")
 
@@ -65,6 +65,15 @@ async def generate_evaluation_stream(idea: IdeaInput):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+class IdeaQuery(BaseModel):
+    idea: str
+
+@app.post("/api/competitors", response_model=CompetitorReport)
+async def get_competitors(query: IdeaQuery):
+    """Research competitors for a given startup idea using Groq's training knowledge."""
+    return await research_competitors(query.idea)
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

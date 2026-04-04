@@ -20,6 +20,11 @@ export const checkHealth = async () => {
   }
 };
 
+export const fetchCompetitors = async (idea) => {
+  const response = await api.post('/competitors', { idea });
+  return response.data;
+};
+
 export const evaluateIdeaStream = async (data, onEvent) => {
   const response = await fetch(`${BASE}/api/evaluate-stream`, {
     method: 'POST',

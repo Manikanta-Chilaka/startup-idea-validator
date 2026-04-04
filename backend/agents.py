@@ -6,7 +6,7 @@ import os
 from typing import List
 from groq import AsyncGroq
 from dotenv import load_dotenv
-from models import IdeaInput, AgentResponse, EvaluationReport
+from models import IdeaInput, AgentResponse, EvaluationReport, Competitor, CompetitorReport
 
 load_dotenv()
 
@@ -185,6 +185,60 @@ def _build_report(idea_input: IdeaInput, agents_data: List[AgentResponse]) -> Ev
         overall_score=int((adoption_score + (investment_interest * 10) + ((10 - avg_risk) * 10)) / 3),
         agent_responses=agents_data,
     )
+
+
+# ── Competitor research ───────────────────────────────────────────────────────
+
+async def research_competitors(idea: str) -> CompetitorReport:
+    system = (
+        "You are a competitive intelligence analyst. Based on your training knowledge, "
+        "identify real existing companies that compete with the given startup idea. "
+        "Name real companies where they exist. Be honest if a space is new with few players."
+    )
+    user = (
+        f"Startup Idea: {idea}\n\n"
+        "Identify 3 to 5 real or likely competitors. For each provide:\n"
+        "- name: the real company name\n"
+        "- description: one sentence about what they do\n"
+        "- strengths: list of 2-3 key strengths\n"
+        "- weaknesses: list of 2 key weaknesses or blind spots\n"
+        "- market_position: exactly one of 'Market Leader', 'Established Player', 'Niche Player', 'Emerging'\n\n"
+        "Also provide:\n"
+        "- market_gap: one paragraph — what gap exists that none of these competitors fill well\n"
+        "- your_advantage: one paragraph — what competitive edge this startup idea has over them\n\n"
+        "Return valid JSON with keys: competitors (list), market_gap (string), your_advantage (string)"
+    )
+    try:
+        logger.info("Researching competitors via Groq...")
+        response = await _client().chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": user},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.4,
+            max_tokens=1500,
+        )
+        parsed = json.loads(response.choices[0].message.content)
+        competitors = [
+            Competitor(
+                name=strip_emojis(c.get("name", "Unknown")),
+                description=strip_emojis(c.get("description", "")),
+                strengths=[strip_emojis(s) for s in c.get("strengths", [])],
+                weaknesses=[strip_emojis(w) for w in c.get("weaknesses", [])],
+                market_position=strip_emojis(c.get("market_position", "Unknown")),
+            )
+            for c in parsed.get("competitors", [])
+        ]
+        return CompetitorReport(
+            competitors=competitors,
+            market_gap=strip_emojis(parsed.get("market_gap", "")),
+            your_advantage=strip_emojis(parsed.get("your_advantage", "")),
+        )
+    except Exception as e:
+        logger.error(f"Error researching competitors: {e}")
+        raise
 
 
 # ── Public entry points ───────────────────────────────────────────────────────

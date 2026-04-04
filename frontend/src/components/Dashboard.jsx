@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { fetchCompetitors } from '../api';
 import { Radar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -9,7 +10,8 @@ import {
   CheckCircle2, AlertTriangle, XCircle,
   Target, BarChart2, User, Stethoscope,
   Activity, Lightbulb, ArrowUpRight, RefreshCw,
-  Flag, ThumbsUp, ThumbsDown, Download, Zap, Info
+  Flag, ThumbsUp, ThumbsDown, Download, Zap, Info,
+  Search, TrendingUp, TrendingDown, Minus, Loader2
 } from 'lucide-react';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, ArcElement);
@@ -157,13 +159,37 @@ function AgentCard({ agent }) {
   );
 }
 
+const POSITION_COLORS = {
+  'Market Leader':    { badge: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',    dot: 'bg-blue-500'    },
+  'Established Player': { badge: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20', dot: 'bg-emerald-500' },
+  'Niche Player':     { badge: 'bg-amber-500/10 text-amber-400 border border-amber-500/20', dot: 'bg-amber-500'   },
+  'Emerging':         { badge: 'bg-zinc-700 text-zinc-300 border border-zinc-600',          dot: 'bg-zinc-500'    },
+};
+
 // ─── Main ─────────────────────────────────────────────────
 export default function Dashboard({ report, onReset }) {
   const printRef = useRef(null);
+  const [competitors, setCompetitors]       = useState(null);
+  const [competitorLoading, setCompetitorLoading] = useState(false);
+  const [competitorError, setCompetitorError]     = useState(null);
+
   if (!report) return null;
 
   const { startup_idea, customer_adoption_probability, investment_interest, market_risk, overall_score, agent_responses, strengths, weaknesses, opportunities, threats, suggested_improvements } = report;
   const riskColor = market_risk === 'Low' ? 'emerald' : market_risk === 'Medium' ? 'amber' : 'red';
+
+  const handleResearchCompetitors = async () => {
+    setCompetitorLoading(true);
+    setCompetitorError(null);
+    try {
+      const data = await fetchCompetitors(startup_idea);
+      setCompetitors(data);
+    } catch {
+      setCompetitorError('Failed to research competitors. Please try again.');
+    } finally {
+      setCompetitorLoading(false);
+    }
+  };
 
   const handleExportPDF = async () => {
     const { default: html2canvas } = await import('html2canvas');
@@ -353,6 +379,113 @@ export default function Dashboard({ report, onReset }) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Competitor Research */}
+      <div>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <p className="section-title">Competitor Research</p>
+            <p className="text-xs text-zinc-600 mt-0.5">Based on Groq's training knowledge — not real-time data</p>
+          </div>
+          {!competitors && (
+            <button
+              onClick={handleResearchCompetitors}
+              disabled={competitorLoading}
+              className="btn-primary text-xs px-4 py-2 disabled:opacity-60"
+            >
+              {competitorLoading
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Researching...</>
+                : <><Search className="w-3.5 h-3.5" /> Research Competitors</>
+              }
+            </button>
+          )}
+        </div>
+
+        {competitorError && (
+          <div className="card p-4 border-red-500/20 bg-red-500/5">
+            <p className="text-sm text-red-400">{competitorError}</p>
+          </div>
+        )}
+
+        {!competitors && !competitorLoading && !competitorError && (
+          <div className="card p-8 flex flex-col items-center gap-2 text-center border-dashed">
+            <Search className="w-7 h-7 text-zinc-700 mb-1" />
+            <p className="text-sm text-zinc-400 font-medium">No competitor data yet</p>
+            <p className="text-xs text-zinc-600">Click "Research Competitors" to find who you're up against</p>
+          </div>
+        )}
+
+        {competitors && (
+          <div className="space-y-3">
+            {/* Competitor cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {competitors.competitors.map((c, i) => {
+                const pos = POSITION_COLORS[c.market_position] ?? POSITION_COLORS['Emerging'];
+                return (
+                  <div key={i} className="card p-4 flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-zinc-100 truncate">{c.name}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5 leading-snug">{c.description}</p>
+                      </div>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md shrink-0 ${pos.badge}`}>
+                        {c.market_position}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/10 p-2">
+                        <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1">Strengths</p>
+                        <ul className="space-y-1">
+                          {c.strengths.map((s, j) => (
+                            <li key={j} className="text-[11px] text-zinc-400 flex items-start gap-1">
+                              <span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0" />{s}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="rounded-lg bg-red-500/5 border border-red-500/10 p-2">
+                        <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider mb-1">Weaknesses</p>
+                        <ul className="space-y-1">
+                          {c.weaknesses.map((w, j) => (
+                            <li key={j} className="text-[11px] text-zinc-400 flex items-start gap-1">
+                              <span className="w-1 h-1 rounded-full bg-red-500 mt-1.5 shrink-0" />{w}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Market gap + your advantage */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="card p-4 border-blue-500/20 bg-blue-500/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+                  <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider">Market Gap</p>
+                </div>
+                <p className="text-sm text-zinc-300 leading-relaxed">{competitors.market_gap}</p>
+              </div>
+              <div className="card p-4 border-emerald-500/20 bg-emerald-500/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                  <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Your Advantage</p>
+                </div>
+                <p className="text-sm text-zinc-300 leading-relaxed">{competitors.your_advantage}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => { setCompetitors(null); setCompetitorError(null); }}
+              className="btn-ghost text-xs"
+            >
+              <RefreshCw className="w-3 h-3" /> Re-research
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -28,3 +28,16 @@ class EvaluationReport(BaseModel):
     suggested_improvements: List[str]
     overall_score: int
     agent_responses: List[AgentResponse]
+
+
+class Competitor(BaseModel):
+    name: str
+    description: str
+    strengths: List[str]
+    weaknesses: List[str]
+    market_position: str  # "Market Leader", "Established Player", "Niche Player", "Emerging"
+
+class CompetitorReport(BaseModel):
+    competitors: List[Competitor]
+    market_gap: str
+    your_advantage: str
