@@ -386,7 +386,12 @@ export default function Dashboard({ report, onReset }) {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
             <p className="section-title">Competitor Research</p>
-            <p className="text-xs text-zinc-600 mt-0.5">Based on Groq's training knowledge — not real-time data</p>
+            {competitors
+              ? competitors.tavily_used
+                ? <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" /> Live web search via Tavily</p>
+                : <p className="text-xs text-amber-400 mt-0.5 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" /> Groq training knowledge only — add TAVILY_API_KEY for live data</p>
+              : <p className="text-xs text-zinc-600 mt-0.5">Searches the web for real competitors via Tavily</p>
+            }
           </div>
           {!competitors && (
             <button

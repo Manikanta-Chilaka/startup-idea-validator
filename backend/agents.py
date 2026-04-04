@@ -194,8 +194,10 @@ def _tavily_search(query: str, max_results: int = 5) -> str:
     """Run a Tavily search and return a condensed text block of results."""
     tavily_key = os.environ.get("TAVILY_API_KEY", "")
     if not tavily_key:
+        logger.warning("TAVILY_API_KEY not set — skipping web search, using Groq training knowledge")
         return ""
     try:
+        logger.info(f"Tavily search: {query}")
         client = TavilyClient(api_key=tavily_key)
         results = client.search(query=query, max_results=max_results, search_depth="basic")
         snippets = []
@@ -204,9 +206,10 @@ def _tavily_search(query: str, max_results: int = 5) -> str:
             content = r.get("content", "")[:300]
             url     = r.get("url", "")
             snippets.append(f"- {title}: {content} ({url})")
+        logger.info(f"Tavily returned {len(snippets)} results")
         return "\n".join(snippets)
     except Exception as e:
-        logger.warning(f"Tavily search failed: {e}")
+        logger.error(f"Tavily search failed: {e}")
         return ""
 
 
@@ -276,6 +279,7 @@ async def research_competitors(idea: str) -> CompetitorReport:
             competitors=competitors,
             market_gap=strip_emojis(parsed.get("market_gap", "")),
             your_advantage=strip_emojis(parsed.get("your_advantage", "")),
+            tavily_used=has_real_data,
         )
     except Exception as e:
         logger.error(f"Error researching competitors: {e}")

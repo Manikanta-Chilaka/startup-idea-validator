@@ -41,3 +41,4 @@ class CompetitorReport(BaseModel):
     competitors: List[Competitor]
     market_gap: str
     your_advantage: str
+    tavily_used: bool = False  # True = real web search, False = Groq training knowledge only
