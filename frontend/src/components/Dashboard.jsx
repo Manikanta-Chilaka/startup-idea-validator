@@ -217,19 +217,19 @@ export default function Dashboard({ report, onReset }) {
     <div ref={printRef} className="space-y-5 pb-10 animate-fade-in">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap no-print-buttons">
-        <div>
+      <div className="flex items-start justify-between gap-3 flex-wrap no-print-buttons">
+        <div className="min-w-0 flex-1">
           <p className="section-title">Analysis Result</p>
-          <h1 className="text-lg font-semibold text-zinc-100 mt-1 max-w-2xl leading-snug">{startup_idea}</h1>
+          <h1 className="text-base sm:text-lg font-semibold text-zinc-100 mt-1 leading-snug">{startup_idea}</h1>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={handleExportPDF} className="btn-ghost text-xs"><Download className="w-3.5 h-3.5" /> Export PDF</button>
-          <button onClick={onReset} className="btn-ghost text-xs"><RefreshCw className="w-3.5 h-3.5" /> New Analysis</button>
+          <button onClick={handleExportPDF} className="btn-ghost text-xs px-2 py-1.5"><Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">Export PDF</span></button>
+          <button onClick={onReset} className="btn-ghost text-xs px-2 py-1.5"><RefreshCw className="w-3.5 h-3.5" /><span className="hidden sm:inline">New Analysis</span></button>
         </div>
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 stagger">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
         <MetricCard icon={Activity} title="Overall Score" value={overall_score} sublabel="Combined rating" ring color={scoreToColor(overall_score)}
           tooltip="Average of customer adoption, investor interest ×10, and inverted risk score ×10." />
         <MetricCard icon={Users} title="Adoption Probability" value={customer_adoption_probability} sublabel="Customer likelihood" ring color={scoreToColor(customer_adoption_probability)}
@@ -241,8 +241,8 @@ export default function Dashboard({ report, onReset }) {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <div className="card p-4 lg:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="card p-4 md:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-semibold text-zinc-200">Agent Radar</p>
@@ -268,7 +268,7 @@ export default function Dashboard({ report, onReset }) {
           <Target className="w-4 h-4 text-zinc-500" />
           <p className="text-sm font-semibold text-zinc-200">Market Fit</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: 'Market Readiness',  val: customer_adoption_probability },
             { label: 'Overall Viability', val: overall_score                  },
@@ -288,7 +288,7 @@ export default function Dashboard({ report, onReset }) {
       {/* Agent Insights */}
       <div>
         <p className="section-title mb-3">Agent Insights</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 stagger">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger">
           {agent_responses.map((agent, i) => (
             <AgentCard key={i} agent={agent} />
           ))}

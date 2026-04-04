@@ -3,7 +3,7 @@ import {
   LayoutDashboard, PlusCircle, History, FileText,
   Settings, Bell, Search, ChevronDown,
   Trash2, Clock, AlertCircle,
-  CheckCircle2, Loader2, Zap
+  CheckCircle2, Loader2, Zap, Menu, X
 } from 'lucide-react';
 import IdeaForm from './components/IdeaForm';
 import Dashboard from './components/Dashboard';
@@ -32,10 +32,18 @@ export default function App() {
   const [health, setHealth]           = useState({ backend: false, ollama: false, checked: false });
   const [ideaHistory, setIdeaHistory] = useState(loadHistory);
   const [progress, setProgress]       = useState({ status: '', agents: [], completedAgents: [], activeAgent: null });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     checkHealth().then(h => setHealth({ ...h, checked: true }));
   }, []);
+
+  // Close sidebar on nav click (mobile)
+  const handleNavClick = (id) => {
+    setActiveNav(id);
+    setSidebarOpen(false);
+    if (id === 'new') { setReport(null); setError(null); }
+  };
 
   const handleSubmit = async (formData) => {
     setIsLoading(true);
@@ -44,11 +52,11 @@ export default function App() {
     try {
       let finalReport = null;
       await evaluateIdeaStream(formData, (event) => {
-        if (event.type === 'status')       setProgress(p => ({ ...p, status: event.message }));
+        if (event.type === 'status')            setProgress(p => ({ ...p, status: event.message }));
         else if (event.type === 'agents_ready') setProgress(p => ({ ...p, agents: event.agents, status: 'Consulting agents in parallel...' }));
-        else if (event.type === 'agent_start') setProgress(p => ({ ...p, activeAgent: event.name }));
-        else if (event.type === 'agent_done')  setProgress(p => ({ ...p, completedAgents: [...p.completedAgents, event.name], activeAgent: null }));
-        else if (event.type === 'result')  finalReport = event.report;
+        else if (event.type === 'agent_start')  setProgress(p => ({ ...p, activeAgent: event.name }));
+        else if (event.type === 'agent_done')   setProgress(p => ({ ...p, completedAgents: [...p.completedAgents, event.name], activeAgent: null }));
+        else if (event.type === 'result')       finalReport = event.report;
       });
       if (finalReport) {
         setReport(finalReport);
@@ -66,79 +74,109 @@ export default function App() {
     }
   };
 
-  const handleReset       = () => { setReport(null); setError(null); setActiveNav('new'); };
-  const handleNavClick    = (id) => { setActiveNav(id); if (id === 'new') { setReport(null); setError(null); } };
-  const handleLoadHistory = (entry) => { setReport(entry.report); setActiveNav('dashboard'); };
+  const handleReset        = () => { setReport(null); setError(null); setActiveNav('new'); };
+  const handleLoadHistory  = (entry) => { setReport(entry.report); setActiveNav('dashboard'); };
   const handleClearHistory = () => { setIdeaHistory([]); saveHistory([]); };
 
   const aiLabel = !health.checked ? 'Checking...' : health.ollama ? 'Connected' : health.backend ? 'Groq offline' : 'Backend offline';
   const aiOk    = health.ollama;
 
+  const SidebarContent = () => (
+    <>
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 mb-7 px-2">
+        <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+          <span className="text-white text-xs font-bold">SV</span>
+        </div>
+        <span className="text-sm font-semibold text-zinc-100">Startup Validator</span>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex flex-col gap-0.5">
+        <p className="section-title px-3 mb-2">Menu</p>
+        {NAV_ITEMS.map(({ icon: Icon, label, id }) => (
+          <div key={id} onClick={() => handleNavClick(id)} className={activeNav === id ? 'sidebar-item-active' : 'sidebar-item'}>
+            <Icon className="w-4 h-4 shrink-0" />
+            <span className="flex-1">{label}</span>
+            {id === 'history' && ideaHistory.length > 0 && (
+              <span className="text-xs bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded-md">{ideaHistory.length}</span>
+            )}
+          </div>
+        ))}
+      </nav>
+
+      <div className="flex-1" />
+
+      {/* AI Status */}
+      <div className="mx-2 mb-3 px-3 py-2.5 rounded-lg bg-zinc-800/60 border border-zinc-800">
+        <div className="flex items-center gap-2">
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${aiOk ? 'bg-emerald-400' : 'bg-red-400'}`} />
+          <span className="text-xs text-zinc-400">Groq AI</span>
+          <span className={`ml-auto text-xs font-medium ${aiOk ? 'text-emerald-400' : 'text-red-400'}`}>{aiLabel}</span>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#09090b]">
 
-      {/* ── Sidebar ─────────────────────────────────────── */}
-      <aside className="w-[240px] shrink-0 flex flex-col border-r border-zinc-800 bg-[#0f0f11] py-5 px-3">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-7 px-2">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">SV</span>
-          </div>
-          <span className="text-sm font-semibold text-zinc-100">Startup Validator</span>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex flex-col gap-0.5">
-          <p className="section-title px-3 mb-2">Menu</p>
-          {NAV_ITEMS.map(({ icon: Icon, label, id }) => (
-            <div key={id} onClick={() => handleNavClick(id)} className={activeNav === id ? 'sidebar-item-active' : 'sidebar-item'}>
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="flex-1">{label}</span>
-              {id === 'history' && ideaHistory.length > 0 && (
-                <span className="text-xs bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded-md">{ideaHistory.length}</span>
-              )}
-            </div>
-          ))}
-        </nav>
-
-        <div className="flex-1" />
-
-        {/* AI Status */}
-        <div className="mx-2 mb-3 px-3 py-2.5 rounded-lg bg-zinc-800/60 border border-zinc-800">
-          <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${aiOk ? 'bg-emerald-400' : 'bg-red-400'}`} />
-            <span className="text-xs text-zinc-400">Groq AI</span>
-            <span className={`ml-auto text-xs font-medium ${aiOk ? 'text-emerald-400' : 'text-red-400'}`}>{aiLabel}</span>
-          </div>
-        </div>
-
+      {/* ── Desktop Sidebar ──────────────────────────────── */}
+      <aside className="hidden md:flex w-[240px] shrink-0 flex-col border-r border-zinc-800 bg-[#0f0f11] py-5 px-3">
+        <SidebarContent />
       </aside>
 
+      {/* ── Mobile Sidebar Drawer ────────────────────────── */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          {/* Drawer */}
+          <aside className="relative z-10 w-[240px] flex flex-col border-r border-zinc-800 bg-[#0f0f11] py-5 px-3 animate-slide-right">
+            <button onClick={() => setSidebarOpen(false)} className="absolute top-4 right-3 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
+
       {/* ── Main ────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+
         {/* Header */}
-        <header className="h-14 shrink-0 border-b border-zinc-800 bg-[#0f0f11] flex items-center px-5 gap-3">
+        <header className="h-14 shrink-0 border-b border-zinc-800 bg-[#0f0f11] flex items-center px-4 gap-3">
+          {/* Hamburger — mobile only */}
+          <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors shrink-0">
+            <Menu className="w-4 h-4" />
+          </button>
+
           <div className="flex-1 max-w-sm relative">
             <Search className="w-3.5 h-3.5 text-zinc-600 absolute left-3 top-1/2 -translate-y-1/2" />
             <input readOnly placeholder="New analysis..." onClick={() => handleNavClick('new')}
               className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-4 py-1.5 text-sm text-zinc-400 placeholder-zinc-600 cursor-pointer hover:border-zinc-700 transition-colors focus:outline-none" />
           </div>
+
           <div className="flex-1" />
-          <div className={`flex items-center gap-1.5 text-xs font-medium ${aiOk ? 'text-emerald-400' : 'text-zinc-500'}`}>
+
+          <div className={`hidden sm:flex items-center gap-1.5 text-xs font-medium ${aiOk ? 'text-emerald-400' : 'text-zinc-500'}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${aiOk ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
             {aiLabel}
           </div>
+
           <button className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
             <Bell className="w-4 h-4" />
           </button>
+
           <div className="flex items-center gap-1.5 cursor-pointer">
             <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-300 text-xs font-semibold">F</div>
-            <ChevronDown className="w-3.5 h-3.5 text-zinc-600" />
+            <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-zinc-600" />
           </div>
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-20 md:pb-5">
+
           {/* Error */}
           {error && (
             <div className="mb-5 bg-red-500/8 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg flex items-center justify-between">
@@ -156,7 +194,7 @@ export default function App() {
                   <Zap className="w-5 h-5 text-blue-400" />
                 </div>
               </div>
-              <div className="text-center w-full max-w-sm">
+              <div className="text-center w-full max-w-sm px-4">
                 <p className="text-base font-semibold text-zinc-100">Analysing your idea...</p>
                 <p className="text-sm text-zinc-500 mt-1">{progress.status || 'Initializing...'}</p>
                 {progress.agents.length > 0 && (
@@ -169,7 +207,7 @@ export default function App() {
                           {done   ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                           : active ? <Loader2     className="w-3.5 h-3.5 text-blue-400 shrink-0 animate-spin" />
                                    : <span className="w-3.5 h-3.5 rounded-full border border-zinc-700 shrink-0" />}
-                          <span className="flex-1 truncate">{agent}</span>
+                          <span className="flex-1 truncate text-xs">{agent}</span>
                           {active && <span className="text-xs text-blue-400">Running</span>}
                           {done   && <span className="text-xs text-emerald-400">Done</span>}
                         </div>
@@ -256,26 +294,37 @@ export default function App() {
               <div><p className="section-title">Settings</p><h2 className="text-lg font-semibold text-zinc-100 mt-1">Application Settings</h2></div>
               <div className="card divide-y divide-zinc-800">
                 <div className="px-4 py-3"><p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Connections</p></div>
-                <div className="px-4 py-3 flex items-center justify-between">
-                  <div><p className="text-sm text-zinc-300">Backend</p><p className="text-xs text-zinc-600">http://localhost:8000</p></div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-md ${health.backend ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.backend ? 'Online' : 'Offline'}</span>
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0"><p className="text-sm text-zinc-300">Backend</p><p className="text-xs text-zinc-600 truncate">API server</p></div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-md shrink-0 ${health.backend ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.backend ? 'Online' : 'Offline'}</span>
                 </div>
-                <div className="px-4 py-3 flex items-center justify-between">
-                  <div><p className="text-sm text-zinc-300">Groq AI</p><p className="text-xs text-zinc-600">api.groq.com (llama-3.3-70b-versatile)</p></div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-md ${health.ollama ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.ollama ? 'Connected' : 'Disconnected'}</span>
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0"><p className="text-sm text-zinc-300">Groq AI</p><p className="text-xs text-zinc-600 truncate">llama-3.3-70b-versatile</p></div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-md shrink-0 ${health.ollama ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>{health.ollama ? 'Connected' : 'Disconnected'}</span>
                 </div>
               </div>
               <div className="card divide-y divide-zinc-800">
                 <div className="px-4 py-3"><p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Data</p></div>
-                <div className="px-4 py-3 flex items-center justify-between">
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
                   <div><p className="text-sm text-zinc-300">Saved reports</p><p className="text-xs text-zinc-600">{ideaHistory.length} stored locally</p></div>
-                  <button onClick={handleClearHistory} disabled={ideaHistory.length === 0} className="btn-ghost text-red-400 hover:text-red-300 text-xs disabled:opacity-30 disabled:cursor-not-allowed"><Trash2 className="w-3.5 h-3.5" /> Clear</button>
+                  <button onClick={handleClearHistory} disabled={ideaHistory.length === 0} className="btn-ghost text-red-400 hover:text-red-300 text-xs disabled:opacity-30 disabled:cursor-not-allowed shrink-0"><Trash2 className="w-3.5 h-3.5" /> Clear</button>
                 </div>
               </div>
             </div>
           )}
         </main>
       </div>
+
+      {/* ── Mobile Bottom Nav ────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0f0f11] border-t border-zinc-800 flex items-center justify-around px-2 py-2 safe-area-pb">
+        {NAV_ITEMS.map(({ icon: Icon, label, id }) => (
+          <button key={id} onClick={() => handleNavClick(id)}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${activeNav === id ? 'text-blue-400' : 'text-zinc-600 hover:text-zinc-400'}`}>
+            <Icon className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{label === 'New Analysis' ? 'New' : label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
