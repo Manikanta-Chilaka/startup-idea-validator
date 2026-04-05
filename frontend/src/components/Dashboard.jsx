@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { fetchCompetitors } from '../api';
 import { Radar, Doughnut } from 'react-chartjs-2';
 import {
@@ -11,7 +11,7 @@ import {
   Target, BarChart2, User, Stethoscope,
   Activity, Lightbulb, ArrowUpRight, RefreshCw,
   Flag, ThumbsUp, ThumbsDown, Download, Zap, Info,
-  Search, TrendingUp, TrendingDown, Minus, Loader2
+  Search, TrendingUp, Loader2
 } from 'lucide-react';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, ArcElement);
@@ -168,7 +168,6 @@ const POSITION_COLORS = {
 
 // ─── Main ─────────────────────────────────────────────────
 export default function Dashboard({ report, onReset }) {
-  const printRef = useRef(null);
   const [competitors, setCompetitors]       = useState(null);
   const [competitorLoading, setCompetitorLoading] = useState(false);
   const [competitorError, setCompetitorError]     = useState(null);
@@ -191,15 +190,7 @@ export default function Dashboard({ report, onReset }) {
     }
   };
 
-  const handleExportPDF = async () => {
-    const { default: html2canvas } = await import('html2canvas');
-    const { default: jsPDF }       = await import('jspdf');
-    const canvas  = await html2canvas(printRef.current, { scale: 2, useCORS: true, backgroundColor: '#09090b' });
-    const pdf     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const w       = pdf.internal.pageSize.getWidth();
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, w, (canvas.height * w) / canvas.width);
-    pdf.save(`report-${startup_idea.slice(0, 25).replace(/\s+/g, '-')}.pdf`);
-  };
+  const handleExportPDF = () => window.print();
 
   const avgRisk = agent_responses.reduce((s, a) => s + a.risk_score, 0) / agent_responses.length;
 
@@ -245,7 +236,7 @@ export default function Dashboard({ report, onReset }) {
   }
 
   return (
-    <div ref={printRef} className="space-y-5 pb-10 animate-fade-in">
+    <div className="space-y-5 pb-10 animate-fade-in">
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap no-print-buttons">

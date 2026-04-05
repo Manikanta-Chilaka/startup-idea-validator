@@ -173,11 +173,12 @@ def _build_report(idea_input: IdeaInput, agents_data: List[AgentResponse]) -> Ev
     investor = next((a for a in agents_data if "investor" in a.agent_name.lower() or "capital" in a.agent_name.lower()), None)
     investment_interest = investor.interest_score if investor else sum(a.interest_score for a in agents_data) // len(agents_data)
 
+    _error_str = "failed to generate response"
     all_concerns:      List[str] = []
     all_opportunities: List[str] = []
     for a in agents_data:
-        all_concerns.extend(a.concerns)
-        all_opportunities.extend(a.opportunities)
+        all_concerns.extend([c for c in a.concerns if c.lower() != _error_str])
+        all_opportunities.extend([o for o in a.opportunities if o.lower() != _error_str])
 
     top_concerns = list(dict.fromkeys(all_concerns))[:3]
     top_opps     = list(dict.fromkeys(all_opportunities))[:2]

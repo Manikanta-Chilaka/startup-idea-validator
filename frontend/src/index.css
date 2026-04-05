@@ -90,6 +90,21 @@
 
 @media print {
   aside, header, .no-print-buttons { display: none !important; }
-  body { background: #09090b !important; }
-  .card, .card-hover { break-inside: avoid; }
+
+  *, *::before, *::after { color: #18181b !important; border-color: #d4d4d8 !important; }
+
+  body, html        { background: #ffffff !important; color: #18181b !important; }
+  .card, .card-hover {
+    background: #ffffff !important;
+    border: 1px solid #d4d4d8 !important;
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+  .progress-bar-bg  { background: #e4e4e7 !important; }
+  .badge-blue       { background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important; }
+  .badge-green      { background: #f0fdf4 !important; color: #15803d !important; border-color: #bbf7d0 !important; }
+  .badge-yellow     { background: #fefce8 !important; color: #a16207 !important; border-color: #fef08a !important; }
+  .badge-red        { background: #fef2f2 !important; color: #b91c1c !important; border-color: #fecaca !important; }
+  .section-title    { color: #71717a !important; }
+  input             { display: none !important; }
 }
