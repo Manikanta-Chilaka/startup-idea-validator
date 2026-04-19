@@ -14,6 +14,7 @@ import LandingPage from './components/LandingPage';
 import MainDashboard from './components/MainDashboard';
 import { evaluateIdeaStream, checkHealth } from './api';
 import { supabase } from './supabaseClient';
+import { loadEvaluations, saveEvaluation, clearEvaluations } from './supabaseDB';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard',    id: 'dashboard' },
@@ -23,12 +24,6 @@ const NAV_ITEMS = [
   { icon: Settings,        label: 'Settings',     id: 'settings' },
 ];
 
-const HISTORY_KEY = 'startup_validator_history';
-function loadHistory() {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
-  catch { return []; }
-}
-function saveHistory(e) { localStorage.setItem(HISTORY_KEY, JSON.stringify(e)); }
 
 export default function App() {
   const [session, setSession]             = useState(null);
@@ -39,7 +34,8 @@ export default function App() {
   const [error, setError]                 = useState(null);
   const [activeNav, setActiveNav]         = useState('dashboard');
   const [health, setHealth]               = useState({ backend: false, ollama: false, tavily: false, model: '', checked: false });
-  const [ideaHistory, setIdeaHistory]     = useState(loadHistory);
+  const [ideaHistory, setIdeaHistory]     = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [progress, setProgress]           = useState({ status: '', agents: [], completedAgents: [], activeAgent: null });
   const [sidebarOpen, setSidebarOpen]     = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -59,6 +55,29 @@ export default function App() {
   useEffect(() => {
     checkHealth().then(h => setHealth({ ...h, checked: true }));
   }, []);
+
+  useEffect(() => {
+    if (!session) { setIdeaHistory([]); return; }
+
+    setHistoryLoading(true);
+    loadEvaluations(session.user.id)
+      .then(setIdeaHistory)
+      .catch(console.error)
+      .finally(() => setHistoryLoading(false));
+
+    const channel = supabase
+      .channel('evaluations-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'evaluations', filter: `user_id=eq.${session.user.id}` },
+        () => {
+          loadEvaluations(session.user.id).then(setIdeaHistory).catch(console.error);
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [session]);
 
   if (!authReady) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -91,10 +110,21 @@ export default function App() {
       });
       if (finalReport) {
         setReport(finalReport);
-        const entry = { id: Date.now(), idea: finalReport.startup_idea, score: finalReport.overall_score, risk: finalReport.market_risk, date: new Date().toLocaleDateString(), report: finalReport };
-        const updated = [entry, ...ideaHistory].slice(0, 20);
-        setIdeaHistory(updated);
-        saveHistory(updated);
+        const entry = {
+          idea: finalReport.startup_idea,
+          score: finalReport.overall_score,
+          risk: finalReport.market_risk,
+          date: new Date().toLocaleDateString(),
+          report: finalReport,
+        };
+        try {
+          const dbId = await saveEvaluation(session.user.id, entry);
+          entry.id = dbId;
+        } catch (dbErr) {
+          console.error('Failed to save to cloud:', dbErr);
+          entry.id = Date.now();
+        }
+        setIdeaHistory(prev => [entry, ...prev].slice(0, 50));
         setActiveNav('dashboard');
       }
     } catch (err) {
@@ -107,7 +137,11 @@ export default function App() {
 
   const handleReset        = () => { setReport(null); setError(null); setActiveNav('new'); };
   const handleLoadHistory  = (entry) => { setReport(entry.report); setActiveNav('dashboard'); };
-  const handleClearHistory = () => { setIdeaHistory([]); saveHistory([]); };
+  const handleClearHistory = async () => {
+    setIdeaHistory([]);
+    try { await clearEvaluations(session.user.id); }
+    catch (err) { console.error('Failed to clear cloud history:', err); }
+  };
 
   const aiOk    = health.ollama;
   const aiLabel = !health.checked ? 'Checking...' : aiOk ? 'Connected' : health.backend ? 'Groq offline' : 'Backend offline';
@@ -396,7 +430,7 @@ export default function App() {
                   <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Data</p>
                 </div>
                 <div className="px-4 py-3 flex items-center justify-between gap-3">
-                  <div><p style={{ fontSize: 13, color: 'var(--text)' }}>Saved reports</p><p style={{ fontSize: 11, color: 'var(--text3)' }}>{ideaHistory.length} stored locally</p></div>
+                  <div><p style={{ fontSize: 13, color: 'var(--text)' }}>Saved reports</p><p style={{ fontSize: 11, color: 'var(--text3)' }}>{historyLoading ? 'Loading…' : `${ideaHistory.length} stored in cloud`}</p></div>
                   <button onClick={handleClearHistory} disabled={ideaHistory.length === 0} className="btn-ghost shrink-0" style={{ color: '#F87171', fontSize: 12 }}><Trash2 size={13} /> Clear</button>
                 </div>
               </div>
