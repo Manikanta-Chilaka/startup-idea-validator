@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { fetchCompetitors } from '../api';
+import { generatePDF } from '../generatePDF';
 import { Radar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -267,7 +268,7 @@ export default function Dashboard({ report, onReset }) {
           <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4, lineHeight: 1.3 }}>{startup_idea}</h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <button onClick={() => window.print()} className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}>
+          <button onClick={() => generatePDF(report)} className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}>
             <Download style={{ width: 14, height: 14 }} /><span className="hidden sm:inline">Export PDF</span>
           </button>
           <button onClick={onReset} className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}>
