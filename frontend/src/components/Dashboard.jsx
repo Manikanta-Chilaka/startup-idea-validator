@@ -18,96 +18,111 @@ ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, 
 
 // ─── Helpers ──────────────────────────────────────────────
 function scoreToColor(s) {
-  if (s >= 65) return 'emerald';
+  if (s >= 65) return 'green';
   if (s >= 40) return 'amber';
   return 'red';
 }
 
+const COLOR_MAP = {
+  green: { stroke: '#10B981', glow: 'rgba(16,185,129,0.4)', text: '#34D399' },
+  amber: { stroke: '#F59E0B', glow: 'rgba(245,158,11,0.4)',  text: '#FBBF24' },
+  red:   { stroke: '#EF4444', glow: 'rgba(239,68,68,0.4)',   text: '#F87171' },
+};
+
 function ScoreRing({ score, size = 72 }) {
-  const color = scoreToColor(score);
-  const map = {
-    emerald: { stroke: '#10b981', text: 'text-emerald-400' },
-    amber:   { stroke: '#f59e0b', text: 'text-amber-400'   },
-    red:     { stroke: '#ef4444', text: 'text-red-400'      },
-  };
-  const c = map[color];
-  const r = (size / 2) - 5;
+  const c = COLOR_MAP[scoreToColor(score)];
+  const r = (size / 2) - 6;
   const circ = 2 * Math.PI * r;
   const offset = circ - (score / 100) * circ;
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#27272a" strokeWidth="4" />
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--bg3)" strokeWidth="4" />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={c.stroke} strokeWidth="4"
           strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1s ease' }} />
+          style={{ transition: 'stroke-dashoffset 1s ease', filter: `drop-shadow(0 0 4px ${c.glow})` }} />
       </svg>
-      <span className={`absolute text-sm font-bold ${c.text}`}>{score}%</span>
+      <span className="absolute text-xs font-bold" style={{ color: c.text, fontSize: size < 48 ? 10 : 12 }}>{score}%</span>
     </div>
   );
 }
 
-function Bar({ value, color = 'blue', className = '' }) {
-  const colors = { blue: 'bg-blue-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' };
+function ProgressBar({ value, colorKey = 'green', className = '' }) {
+  const fill = { green: '#10B981', amber: '#F59E0B', red: '#EF4444', accent: 'var(--accent)' }[colorKey] ?? 'var(--accent)';
   return (
     <div className={`progress-bar-bg ${className}`}>
-      <div className={`progress-bar-fill ${colors[color] ?? colors.blue}`} style={{ width: `${Math.min(value, 100)}%` }} />
+      <div className="progress-bar-fill" style={{ width: `${Math.min(value, 100)}%`, background: fill }} />
     </div>
   );
 }
 
-function Tooltip2({ text, children }) {
+function TooltipHint({ text, children }) {
   return (
     <div className="relative group/tip inline-block">
       {children}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2
-                      bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300
-                      w-56 text-center shadow-xl z-20
-                      opacity-0 pointer-events-none transition-opacity
-                      group-hover/tip:opacity-100">
+      <div style={{
+        position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+        marginBottom: 8, padding: '8px 12px', background: 'var(--bg2)',
+        border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)',
+        fontSize: 11, color: 'var(--text2)', width: 220, textAlign: 'center',
+        zIndex: 20, opacity: 0, pointerEvents: 'none', transition: 'opacity 0.15s',
+        boxShadow: 'var(--shadow)',
+      }} className="group-hover/tip:opacity-100">
         {text}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-700" />
       </div>
     </div>
   );
 }
 
-function MetricCard({ icon: Icon, title, value, sublabel, color = 'blue', ring = false, tooltip }) {
-  const iconColor = { blue: 'text-blue-400 bg-blue-500/10', emerald: 'text-emerald-400 bg-emerald-500/10', amber: 'text-amber-400 bg-amber-500/10', red: 'text-red-400 bg-red-500/10' }[color] ?? 'text-blue-400 bg-blue-500/10';
-  const [ic, ibg] = iconColor.split(' ');
+function MetricCard({ icon: Icon, title, value, sublabel, colorKey = 'accent', ring = false, tooltip }) {
+  const accentMap = {
+    green:  { icon: '#10B981', bg: 'rgba(16,185,129,0.1)'   },
+    amber:  { icon: '#F59E0B', bg: 'rgba(245,158,11,0.1)'   },
+    red:    { icon: '#EF4444', bg: 'rgba(239,68,68,0.1)'     },
+    accent: { icon: 'var(--accent)', bg: 'rgba(99,102,241,0.12)' },
+  };
+  const col = accentMap[colorKey] ?? accentMap.accent;
 
-  const inner = (
+  return (
     <div className="card p-4 h-full">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`p-1.5 rounded-lg ${ibg}`}><Icon className={`w-4 h-4 ${ic}`} /></div>
-        {tooltip && <Tooltip2 text={tooltip}><Info className="w-3.5 h-3.5 text-zinc-600 hover:text-zinc-400 cursor-help transition-colors" /></Tooltip2>}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ padding: 6, borderRadius: 8, background: col.bg }}>
+          <Icon style={{ width: 16, height: 16, color: col.icon }} />
+        </div>
+        {tooltip && (
+          <TooltipHint text={tooltip}>
+            <Info style={{ width: 14, height: 14, color: 'var(--text3)', cursor: 'help' }} />
+          </TooltipHint>
+        )}
       </div>
       {ring ? (
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <ScoreRing score={value} size={60} />
-          <div><p className="text-xs text-zinc-400">{title}</p>{sublabel && <p className="text-xs text-zinc-600 mt-0.5">{sublabel}</p>}</div>
+          <div>
+            <p style={{ fontSize: 11, color: 'var(--text2)' }}>{title}</p>
+            {sublabel && <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{sublabel}</p>}
+          </div>
         </div>
       ) : (
         <>
-          <p className="text-2xl font-bold text-zinc-100">{value}</p>
-          <p className="text-xs text-zinc-400 mt-0.5">{title}</p>
-          {sublabel && <p className="text-xs text-zinc-600 mt-0.5">{sublabel}</p>}
+          <p style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{value}</p>
+          <p style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{title}</p>
+          {sublabel && <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{sublabel}</p>}
         </>
       )}
     </div>
   );
-  return inner;
 }
 
 function agentIcon(name) {
   const n = (name || '').toLowerCase();
-  if (n.includes('invest') || n.includes('capital')) return { Icon: DollarSign,  color: 'text-blue-400',    bg: 'bg-blue-500/10'    };
-  if (n.includes('customer') || n.includes('user'))  return { Icon: Users,       color: 'text-sky-400',     bg: 'bg-sky-500/10'     };
-  if (n.includes('doctor') || n.includes('medic'))   return { Icon: Stethoscope, color: 'text-emerald-400', bg: 'bg-emerald-500/10' };
-  if (n.includes('competi'))                         return { Icon: Zap,         color: 'text-orange-400',  bg: 'bg-orange-500/10'  };
-  if (n.includes('market') || n.includes('growth'))  return { Icon: BarChart2,   color: 'text-cyan-400',    bg: 'bg-cyan-500/10'    };
-  if (n.includes('legal') || n.includes('regulat'))  return { Icon: Shield,      color: 'text-amber-400',   bg: 'bg-amber-500/10'   };
-  return { Icon: User, color: 'text-zinc-400', bg: 'bg-zinc-800' };
+  if (n.includes('invest') || n.includes('capital')) return { Icon: DollarSign, color: 'var(--accent)',  bg: 'rgba(99,102,241,0.12)'  };
+  if (n.includes('customer') || n.includes('user'))  return { Icon: Users,      color: 'var(--cyan)',    bg: 'rgba(6,182,212,0.1)'    };
+  if (n.includes('doctor') || n.includes('medic'))   return { Icon: Stethoscope,color: '#10B981',        bg: 'rgba(16,185,129,0.1)'   };
+  if (n.includes('competi'))                          return { Icon: Zap,        color: '#F59E0B',        bg: 'rgba(245,158,11,0.1)'   };
+  if (n.includes('market') || n.includes('growth'))  return { Icon: BarChart2,  color: 'var(--cyan)',    bg: 'rgba(6,182,212,0.1)'    };
+  if (n.includes('legal') || n.includes('regulat'))  return { Icon: Shield,     color: '#F59E0B',        bg: 'rgba(245,158,11,0.1)'   };
+  return { Icon: User, color: 'var(--text2)', bg: 'var(--surface-hover)' };
 }
 
 function AgentCard({ agent }) {
@@ -115,67 +130,69 @@ function AgentCard({ agent }) {
   const { Icon, color, bg } = agentIcon(agent.agent_name);
   const conf = Math.round((agent.interest_score / 10) * 100);
   const isLong = agent.feedback.length > 120;
+  const confKey = conf >= 65 ? 'green' : conf >= 40 ? 'amber' : 'red';
 
   return (
-    <div className="card p-4 flex flex-col gap-3">
-      <div className="flex items-center gap-2.5">
-        <div className={`p-1.5 rounded-lg ${bg}`}><Icon className={`w-4 h-4 ${color}`} /></div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-zinc-200 truncate">{agent.agent_name}</p>
-          <p className="text-xs text-zinc-600">{agent.interest_score}/10</p>
+    <div className="card p-4" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: 6, borderRadius: 8, background: bg, flexShrink: 0 }}>
+          <Icon style={{ width: 16, height: 16, color }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.agent_name}</p>
+          <p style={{ fontSize: 11, color: 'var(--text3)' }}>{agent.interest_score}/10</p>
         </div>
         <ScoreRing score={agent.interest_score * 10} size={40} />
       </div>
 
       <div>
-        <p className={`text-xs text-zinc-500 leading-relaxed italic ${!expanded ? 'line-clamp-3' : ''}`}>
+        <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6, fontStyle: 'italic',
+          display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: expanded ? 'unset' : 3, overflow: 'hidden' }}>
           "{agent.feedback}"
         </p>
         {isLong && (
-          <button
-            onClick={() => setExpanded(e => !e)}
-            className="text-xs text-blue-400 hover:text-blue-300 mt-1 transition-colors"
-          >
+          <button onClick={() => setExpanded(e => !e)}
+            style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
             {expanded ? 'Show less' : 'Read more'}
           </button>
         )}
       </div>
 
       {agent.concerns[0] && (
-        <div className="border border-red-500/15 rounded-lg p-2.5 bg-red-500/5">
-          <p className="text-xs text-red-400 font-medium mb-0.5">Key concern</p>
-          <p className="text-xs text-zinc-500 leading-snug line-clamp-2">{agent.concerns[0]}</p>
+        <div style={{ borderRadius: 8, padding: '8px 10px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#F87171', marginBottom: 2 }}>Key concern</p>
+          <p style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.5, display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden' }}>{agent.concerns[0]}</p>
         </div>
       )}
 
       <div>
-        <div className="flex justify-between mb-1">
-          <span className="text-xs text-zinc-600">Confidence</span>
-          <span className="text-xs text-zinc-400">{conf}%</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontSize: 11, color: 'var(--text3)' }}>Confidence</span>
+          <span style={{ fontSize: 11, color: 'var(--text2)' }}>{conf}%</span>
         </div>
-        <Bar value={conf} color={conf >= 65 ? 'emerald' : conf >= 40 ? 'amber' : 'red'} />
+        <ProgressBar value={conf} colorKey={confKey} />
       </div>
     </div>
   );
 }
 
-const POSITION_COLORS = {
-  'Market Leader':    { badge: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',    dot: 'bg-blue-500'    },
-  'Established Player': { badge: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20', dot: 'bg-emerald-500' },
-  'Niche Player':     { badge: 'bg-amber-500/10 text-amber-400 border border-amber-500/20', dot: 'bg-amber-500'   },
-  'Emerging':         { badge: 'bg-zinc-700 text-zinc-300 border border-zinc-600',          dot: 'bg-zinc-500'    },
+const POSITION_STYLES = {
+  'Market Leader':      'badge-blue',
+  'Established Player': 'badge-green',
+  'Niche Player':       'badge-yellow',
+  'Emerging':           'badge-blue',
 };
 
 // ─── Main ─────────────────────────────────────────────────
 export default function Dashboard({ report, onReset }) {
-  const [competitors, setCompetitors]       = useState(null);
+  const [competitors, setCompetitors]           = useState(null);
   const [competitorLoading, setCompetitorLoading] = useState(false);
-  const [competitorError, setCompetitorError]     = useState(null);
+  const [competitorError, setCompetitorError]   = useState(null);
 
   if (!report) return null;
 
   const { startup_idea, customer_adoption_probability, investment_interest, market_risk, overall_score, agent_responses, strengths, weaknesses, opportunities, threats, suggested_improvements } = report;
-  const riskColor = market_risk === 'Low' ? 'emerald' : market_risk === 'Medium' ? 'amber' : 'red';
+  const riskColorKey = market_risk === 'Low' ? 'green' : market_risk === 'Medium' ? 'amber' : 'red';
 
   const handleResearchCompetitors = async () => {
     setCompetitorLoading(true);
@@ -190,8 +207,6 @@ export default function Dashboard({ report, onReset }) {
     }
   };
 
-  const handleExportPDF = () => window.print();
-
   const avgRisk = agent_responses.reduce((s, a) => s + a.risk_score, 0) / agent_responses.length;
 
   const radarLabels = agent_responses.map(a => {
@@ -201,21 +216,21 @@ export default function Dashboard({ report, onReset }) {
   const radarData = {
     labels: radarLabels,
     datasets: [
-      { label: 'Interest (%)', data: agent_responses.map(a => a.interest_score * 10), backgroundColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.8)', borderWidth: 2, pointBackgroundColor: '#3b82f6', pointRadius: 3 },
-      { label: 'Adoption (%)', data: agent_responses.map(a => a.adoption_probability), backgroundColor: 'rgba(148,163,184,0.05)', borderColor: 'rgba(148,163,184,0.5)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#94a3b8', pointRadius: 3 },
+      { label: 'Interest (%)', data: agent_responses.map(a => a.interest_score * 10), backgroundColor: 'rgba(99,102,241,0.12)', borderColor: 'rgba(99,102,241,0.8)', borderWidth: 2, pointBackgroundColor: '#6366F1', pointRadius: 3 },
+      { label: 'Adoption (%)', data: agent_responses.map(a => a.adoption_probability), backgroundColor: 'rgba(6,182,212,0.06)', borderColor: 'rgba(6,182,212,0.6)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#06B6D4', pointRadius: 3 },
     ],
   };
   const radarOpts = {
     layout: { padding: { top: 12, bottom: 12, left: 16, right: 16 } },
-    scales: { r: { min: 0, max: 100, angleLines: { color: 'rgba(255,255,255,0.05)' }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false }, pointLabels: { color: '#71717a', font: { size: 10, family: 'Inter' }, padding: 8 } } },
-    plugins: { legend: { labels: { color: '#52525b', font: { size: 11 } } } },
+    scales: { r: { min: 0, max: 100, angleLines: { color: 'rgba(255,255,255,0.05)' }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false }, pointLabels: { color: '#475569', font: { size: 10, family: 'Inter' }, padding: 8 } } },
+    plugins: { legend: { labels: { color: '#475569', font: { size: 11 } } } },
   };
 
   const donutData = {
     labels: ['Safe', 'Moderate', 'High Risk'],
-    datasets: [{ data: [Math.max(0, 10-avgRisk)*10, Math.min(avgRisk,5)*10, Math.max(0,avgRisk-5)*10], backgroundColor: ['rgba(16,185,129,0.75)', 'rgba(245,158,11,0.75)', 'rgba(239,68,68,0.75)'], borderColor: ['#10b981','#f59e0b','#ef4444'], borderWidth: 1.5, hoverOffset: 4 }]
+    datasets: [{ data: [Math.max(0, 10-avgRisk)*10, Math.min(avgRisk,5)*10, Math.max(0,avgRisk-5)*10], backgroundColor: ['rgba(16,185,129,0.7)', 'rgba(245,158,11,0.7)', 'rgba(239,68,68,0.7)'], borderColor: ['#10B981','#F59E0B','#EF4444'], borderWidth: 1.5, hoverOffset: 4 }]
   };
-  const donutOpts = { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#52525b', padding: 14, font: { size: 11 } } } } };
+  const donutOpts = { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#475569', padding: 14, font: { size: 11 } } } } };
 
   const riskRows = [
     { label: 'Technical Risk',  s: avgRisk > 6 ? 'High' : avgRisk > 3 ? 'Medium' : 'Low' },
@@ -224,71 +239,84 @@ export default function Dashboard({ report, onReset }) {
     { label: 'Execution Risk',  s: overall_score < 40 ? 'High' : overall_score < 65 ? 'Medium' : 'Low' },
   ];
 
-  function SIcon({ s }) {
-    if (s === 'Low')    return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-    if (s === 'Medium') return <AlertTriangle className="w-4 h-4 text-amber-400" />;
-    return <XCircle className="w-4 h-4 text-red-400" />;
+  function RiskIcon({ s }) {
+    if (s === 'Low')    return <CheckCircle2 style={{ width: 16, height: 16, color: '#10B981' }} />;
+    if (s === 'Medium') return <AlertTriangle style={{ width: 16, height: 16, color: '#F59E0B' }} />;
+    return <XCircle style={{ width: 16, height: 16, color: '#EF4444' }} />;
   }
-  function SBadge({ s }) {
+  function RiskBadge({ s }) {
     if (s === 'Low')    return <span className="badge-green">Low</span>;
     if (s === 'Medium') return <span className="badge-yellow">Medium</span>;
     return <span className="badge-red">High</span>;
   }
 
+  const swotItems = [
+    { label: 'Strengths',     Icon: ThumbsUp,    items: strengths,     borderColor: 'rgba(16,185,129,0.2)',  bg: 'rgba(16,185,129,0.05)', headColor: '#10B981', dot: '#10B981' },
+    { label: 'Weaknesses',    Icon: ThumbsDown,  items: weaknesses,    borderColor: 'rgba(239,68,68,0.2)',   bg: 'rgba(239,68,68,0.05)',  headColor: '#EF4444', dot: '#EF4444' },
+    { label: 'Opportunities', Icon: ArrowUpRight, items: opportunities, borderColor: 'rgba(99,102,241,0.2)',  bg: 'rgba(99,102,241,0.05)', headColor: 'var(--accent)', dot: 'var(--accent)' },
+    { label: 'Threats',       Icon: Flag,        items: threats,       borderColor: 'rgba(245,158,11,0.2)',  bg: 'rgba(245,158,11,0.05)', headColor: '#F59E0B', dot: '#F59E0B' },
+  ];
+
   return (
-    <div className="space-y-5 pb-10 animate-fade-in">
+    <div style={{ paddingBottom: 40 }} className="space-y-5 animate-fade-in">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap no-print-buttons">
-        <div className="min-w-0 flex-1">
+      <div className="no-print-buttons" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <p className="section-title">Analysis Result</p>
-          <h1 className="text-base sm:text-lg font-semibold text-zinc-100 mt-1 leading-snug">{startup_idea}</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4, lineHeight: 1.3 }}>{startup_idea}</h1>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button onClick={handleExportPDF} className="btn-ghost text-xs px-2 py-1.5"><Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">Export PDF</span></button>
-          <button onClick={onReset} className="btn-ghost text-xs px-2 py-1.5"><RefreshCw className="w-3.5 h-3.5" /><span className="hidden sm:inline">New Analysis</span></button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <button onClick={() => window.print()} className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}>
+            <Download style={{ width: 14, height: 14 }} /><span className="hidden sm:inline">Export PDF</span>
+          </button>
+          <button onClick={onReset} className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}>
+            <RefreshCw style={{ width: 14, height: 14 }} /><span className="hidden sm:inline">New Analysis</span>
+          </button>
         </div>
       </div>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
-        <MetricCard icon={Activity} title="Overall Score" value={overall_score} sublabel="Combined rating" ring color={scoreToColor(overall_score)}
+        <MetricCard icon={Activity}   title="Overall Score"        value={overall_score}                  sublabel="Combined rating"        ring colorKey={scoreToColor(overall_score)}
           tooltip="Average of customer adoption, investor interest ×10, and inverted risk score ×10." />
-        <MetricCard icon={Users} title="Adoption Probability" value={customer_adoption_probability} sublabel="Customer likelihood" ring color={scoreToColor(customer_adoption_probability)}
+        <MetricCard icon={Users}      title="Adoption Probability" value={customer_adoption_probability}  sublabel="Customer likelihood"    ring colorKey={scoreToColor(customer_adoption_probability)}
           tooltip="Average adoption probability predicted across all AI stakeholder agents." />
-        <MetricCard icon={DollarSign} title="Investment Potential" value={`${investment_interest}/10`} sublabel="Investor attractiveness" color={investment_interest >= 7 ? 'emerald' : investment_interest >= 4 ? 'amber' : 'red'}
-          tooltip="Interest score from the investor-persona agent (1–10). Falls back to average if no investor agent is generated." />
-        <MetricCard icon={Shield} title="Market Risk" value={market_risk} sublabel="Overall risk level" color={riskColor}
-          tooltip="Derived from average risk score across agents: below 4 = Low, 4–7 = Medium, above 7 = High." />
+        <MetricCard icon={DollarSign} title="Investment Potential" value={`${investment_interest}/10`}   sublabel="Investor attractiveness" colorKey={investment_interest >= 7 ? 'green' : investment_interest >= 4 ? 'amber' : 'red'}
+          tooltip="Interest score from the investor-persona agent (1–10)." />
+        <MetricCard icon={Shield}     title="Market Risk"          value={market_risk}                    sublabel="Overall risk level"      colorKey={riskColorKey}
+          tooltip="Derived from average risk score: below 4 = Low, 4–7 = Medium, above 7 = High." />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="card p-4 md:col-span-2">
-          <div className="flex items-center justify-between mb-4">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
-              <p className="text-sm font-semibold text-zinc-200">Agent Radar</p>
-              <p className="text-xs text-zinc-500 mt-0.5">Interest and adoption per agent</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Agent Radar</p>
+              <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Interest and adoption per agent</p>
             </div>
             <span className="badge-blue">{agent_responses.length} agents</span>
           </div>
-          <div className="h-[280px]"><Radar data={radarData} options={radarOpts} /></div>
+          <div style={{ height: 280 }}><Radar data={radarData} options={radarOpts} /></div>
         </div>
         <div className="card p-4">
-          <p className="text-sm font-semibold text-zinc-200 mb-1">Risk Distribution</p>
-          <p className="text-xs text-zinc-500 mb-3">Across all agents</p>
-          <div className="h-[200px] flex items-center justify-center"><Doughnut data={donutData} options={donutOpts} /></div>
-          <div className="mt-3 flex justify-center">
-            {market_risk === 'Low' ? <span className="badge-green">Low Risk</span> : market_risk === 'Medium' ? <span className="badge-yellow">Medium Risk</span> : <span className="badge-red">High Risk</span>}
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>Risk Distribution</p>
+          <p style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 12 }}>Across all agents</p>
+          <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Doughnut data={donutData} options={donutOpts} />
+          </div>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+            <RiskBadge s={market_risk} />
           </div>
         </div>
       </div>
 
       {/* Market Fit */}
       <div className="card p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Target className="w-4 h-4 text-zinc-500" />
-          <p className="text-sm font-semibold text-zinc-200">Market Fit</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <Target style={{ width: 16, height: 16, color: 'var(--text3)' }} />
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Market Fit</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
@@ -297,11 +325,11 @@ export default function Dashboard({ report, onReset }) {
             { label: 'Investor Interest', val: investment_interest * 10       },
           ].map(({ label, val }) => (
             <div key={label}>
-              <div className="flex justify-between mb-1.5">
-                <span className="text-xs text-zinc-500">{label}</span>
-                <span className="text-xs font-semibold text-zinc-300">{val}%</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 12, color: 'var(--text2)' }}>{label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{val}%</span>
               </div>
-              <Bar value={val} color={val >= 65 ? 'emerald' : val >= 40 ? 'amber' : 'red'} />
+              <ProgressBar value={val} colorKey={val >= 65 ? 'green' : val >= 40 ? 'amber' : 'red'} />
             </div>
           ))}
         </div>
@@ -309,7 +337,7 @@ export default function Dashboard({ report, onReset }) {
 
       {/* Agent Insights */}
       <div>
-        <p className="section-title mb-3">Agent Insights</p>
+        <p className="section-title" style={{ marginBottom: 12 }}>Agent Insights</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger">
           {agent_responses.map((agent, i) => (
             <AgentCard key={i} agent={agent} />
@@ -318,17 +346,21 @@ export default function Dashboard({ report, onReset }) {
       </div>
 
       {/* Risk Table */}
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-zinc-800">
-          <p className="text-sm font-semibold text-zinc-200">Risk Analysis</p>
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Risk Analysis</p>
         </div>
-        <div className="divide-y divide-zinc-800/60">
+        <div>
           {riskRows.map(({ label, s }) => (
-            <div key={label} className="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/20 transition-colors">
-              <div className="flex items-center gap-3"><SIcon s={s} /><span className="text-sm text-zinc-300">{label}</span></div>
-              <div className="flex items-center gap-3">
-                <Bar value={s === 'Low' ? 25 : s === 'Medium' ? 60 : 90} color={s === 'Low' ? 'emerald' : s === 'Medium' ? 'amber' : 'red'} className="w-20" />
-                <SBadge s={s} />
+            <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}
+              className="hover:bg-[var(--surface-hover)] transition-colors">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <RiskIcon s={s} />
+                <span style={{ fontSize: 13, color: 'var(--text2)' }}>{label}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <ProgressBar value={s === 'Low' ? 25 : s === 'Medium' ? 60 : 90} colorKey={s === 'Low' ? 'green' : s === 'Medium' ? 'amber' : 'red'} className="w-20" />
+                <RiskBadge s={s} />
               </div>
             </div>
           ))}
@@ -337,15 +369,15 @@ export default function Dashboard({ report, onReset }) {
 
       {/* Recommendations */}
       <div className="card p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Lightbulb className="w-4 h-4 text-zinc-500" />
-          <p className="text-sm font-semibold text-zinc-200">Recommendations</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <Lightbulb style={{ width: 16, height: 16, color: 'var(--accent)' }} />
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Recommendations</p>
         </div>
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {suggested_improvements.map((s, i) => (
-            <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-zinc-800/40 hover:bg-zinc-800/70 transition-colors">
-              <span className="w-5 h-5 rounded-md bg-blue-500/15 text-blue-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
-              <p className="text-sm text-zinc-300 leading-relaxed">{s}</p>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 'var(--radius)', background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+              <span style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(99,102,241,0.15)', color: 'var(--accent)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+              <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>{s}</p>
             </div>
           ))}
         </div>
@@ -353,22 +385,17 @@ export default function Dashboard({ report, onReset }) {
 
       {/* SWOT */}
       <div>
-        <p className="section-title mb-3">SWOT Analysis</p>
+        <p className="section-title" style={{ marginBottom: 12 }}>SWOT Analysis</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            { label: 'Strengths',     icon: ThumbsUp,    items: strengths,     cls: 'border-emerald-500/20 bg-emerald-500/5', hcls: 'text-emerald-400', dot: 'bg-emerald-500' },
-            { label: 'Weaknesses',    icon: ThumbsDown,  items: weaknesses,    cls: 'border-red-500/20 bg-red-500/5',         hcls: 'text-red-400',     dot: 'bg-red-500'     },
-            { label: 'Opportunities', icon: ArrowUpRight, items: opportunities, cls: 'border-blue-500/20 bg-blue-500/5',       hcls: 'text-blue-400',    dot: 'bg-blue-500'    },
-            { label: 'Threats',       icon: Flag,        items: threats,       cls: 'border-amber-500/20 bg-amber-500/5',     hcls: 'text-amber-400',   dot: 'bg-amber-500'   },
-          ].map(({ label, icon: Icon, items, cls, hcls, dot }) => (
-            <div key={label} className={`card border ${cls} p-4`}>
-              <div className={`flex items-center gap-2 ${hcls} text-xs font-semibold uppercase tracking-wider mb-3`}>
-                <Icon className="w-3.5 h-3.5" />{label}
+          {swotItems.map(({ label, Icon, items, borderColor, bg, headColor, dot }) => (
+            <div key={label} style={{ borderRadius: 'var(--radius-lg)', border: `1px solid ${borderColor}`, background: bg, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: headColor, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
+                <Icon style={{ width: 13, height: 13 }} />{label}
               </div>
-              <ul className="space-y-2">
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {(items?.length ? items : ['No data available']).map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-400">
-                    <span className={`w-1 h-1 rounded-full ${dot} mt-2 shrink-0`} />{item}
+                  <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text2)' }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot, marginTop: 6, flexShrink: 0 }} />{item}
                   </li>
                 ))}
               </ul>
@@ -379,111 +406,97 @@ export default function Dashboard({ report, onReset }) {
 
       {/* Competitor Research */}
       <div>
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           <div>
             <p className="section-title">Competitor Research</p>
             {competitors
               ? competitors.tavily_used
-                ? <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" /> Live web search via Tavily</p>
-                : <p className="text-xs text-amber-400 mt-0.5 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" /> Groq training knowledge only — add TAVILY_API_KEY for live data</p>
-              : <p className="text-xs text-zinc-600 mt-0.5">Searches the web for real competitors via Tavily</p>
+                ? <p style={{ fontSize: 11, color: '#10B981', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} /> Live web search via Tavily</p>
+                : <p style={{ fontSize: 11, color: '#F59E0B', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }} /> Groq training knowledge — add TAVILY_API_KEY for live data</p>
+              : <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Searches the web for real competitors via Tavily</p>
             }
           </div>
           {!competitors && (
-            <button
-              onClick={handleResearchCompetitors}
-              disabled={competitorLoading}
-              className="btn-primary text-xs px-4 py-2 disabled:opacity-60"
-            >
+            <button onClick={handleResearchCompetitors} disabled={competitorLoading} className="btn-primary" style={{ fontSize: 12, padding: '8px 16px', opacity: competitorLoading ? 0.6 : 1 }}>
               {competitorLoading
-                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Researching...</>
-                : <><Search className="w-3.5 h-3.5" /> Research Competitors</>
+                ? <><Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> Researching...</>
+                : <><Search style={{ width: 14, height: 14 }} /> Research Competitors</>
               }
             </button>
           )}
         </div>
 
         {competitorError && (
-          <div className="card p-4 border-red-500/20 bg-red-500/5">
-            <p className="text-sm text-red-400">{competitorError}</p>
+          <div className="card p-4" style={{ borderColor: 'rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)' }}>
+            <p style={{ fontSize: 13, color: '#F87171' }}>{competitorError}</p>
           </div>
         )}
 
         {!competitors && !competitorLoading && !competitorError && (
-          <div className="card p-8 flex flex-col items-center gap-2 text-center border-dashed">
-            <Search className="w-7 h-7 text-zinc-700 mb-1" />
-            <p className="text-sm text-zinc-400 font-medium">No competitor data yet</p>
-            <p className="text-xs text-zinc-600">Click "Research Competitors" to find who you're up against</p>
+          <div className="card p-8" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', borderStyle: 'dashed' }}>
+            <Search style={{ width: 28, height: 28, color: 'var(--text3)', marginBottom: 4 }} />
+            <p style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 500 }}>No competitor data yet</p>
+            <p style={{ fontSize: 12, color: 'var(--text3)' }}>Click "Research Competitors" to find who you're up against</p>
           </div>
         )}
 
         {competitors && (
-          <div className="space-y-3">
-            {/* Competitor cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {competitors.competitors.map((c, i) => {
-                const pos = POSITION_COLORS[c.market_position] ?? POSITION_COLORS['Emerging'];
-                return (
-                  <div key={i} className="card p-4 flex flex-col gap-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-zinc-100 truncate">{c.name}</p>
-                        <p className="text-xs text-zinc-500 mt-0.5 leading-snug">{c.description}</p>
-                      </div>
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md shrink-0 ${pos.badge}`}>
-                        {c.market_position}
-                      </span>
+              {competitors.competitors.map((c, i) => (
+                <div key={i} className="card p-4" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
+                      <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, lineHeight: 1.4 }}>{c.description}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/10 p-2">
-                        <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1">Strengths</p>
-                        <ul className="space-y-1">
-                          {c.strengths.map((s, j) => (
-                            <li key={j} className="text-[11px] text-zinc-400 flex items-start gap-1">
-                              <span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0" />{s}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="rounded-lg bg-red-500/5 border border-red-500/10 p-2">
-                        <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider mb-1">Weaknesses</p>
-                        <ul className="space-y-1">
-                          {c.weaknesses.map((w, j) => (
-                            <li key={j} className="text-[11px] text-zinc-400 flex items-start gap-1">
-                              <span className="w-1 h-1 rounded-full bg-red-500 mt-1.5 shrink-0" />{w}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                    <span className={POSITION_STYLES[c.market_position] ?? 'badge-blue'} style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.market_position}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div style={{ borderRadius: 8, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)', padding: 8 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Strengths</p>
+                      <ul style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {c.strengths.map((s, j) => (
+                          <li key={j} style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+                            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#10B981', marginTop: 5, flexShrink: 0 }} />{s}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div style={{ borderRadius: 8, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)', padding: 8 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#F87171', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Weaknesses</p>
+                      <ul style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {c.weaknesses.map((w, j) => (
+                          <li key={j} style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+                            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#EF4444', marginTop: 5, flexShrink: 0 }} />{w}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
 
-            {/* Market gap + your advantage */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="card p-4 border-blue-500/20 bg-blue-500/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
-                  <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider">Market Gap</p>
+              <div className="card p-4" style={{ borderColor: 'rgba(99,102,241,0.2)', background: 'rgba(99,102,241,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <TrendingUp style={{ width: 14, height: 14, color: 'var(--accent)' }} />
+                  <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Market Gap</p>
                 </div>
-                <p className="text-sm text-zinc-300 leading-relaxed">{competitors.market_gap}</p>
+                <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>{competitors.market_gap}</p>
               </div>
-              <div className="card p-4 border-emerald-500/20 bg-emerald-500/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                  <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Your Advantage</p>
+              <div className="card p-4" style={{ borderColor: 'rgba(16,185,129,0.2)', background: 'rgba(16,185,129,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Zap style={{ width: 14, height: 14, color: '#10B981' }} />
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Your Advantage</p>
                 </div>
-                <p className="text-sm text-zinc-300 leading-relaxed">{competitors.your_advantage}</p>
+                <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>{competitors.your_advantage}</p>
               </div>
             </div>
 
-            <button
-              onClick={() => { setCompetitors(null); setCompetitorError(null); }}
-              className="btn-ghost text-xs"
-            >
-              <RefreshCw className="w-3 h-3" /> Re-research
+            <button onClick={() => { setCompetitors(null); setCompetitorError(null); }} className="btn-ghost" style={{ fontSize: 12, alignSelf: 'flex-start' }}>
+              <RefreshCw style={{ width: 12, height: 12 }} /> Re-research
             </button>
           </div>
         )}

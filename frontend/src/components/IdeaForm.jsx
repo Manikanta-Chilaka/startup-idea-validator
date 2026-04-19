@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight, Sparkles } from 'lucide-react';
 
 const EXAMPLE_IDEAS = [
   {
@@ -29,26 +29,35 @@ export default function IdeaForm({ onSubmit, isLoading }) {
   const set = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   return (
-    <div className="max-w-2xl mx-auto animate-slide-up">
-      <div className="mb-7">
-        <h1 className="text-2xl font-bold text-zinc-100">Validate Your Startup Idea</h1>
-        <p className="mt-1.5 text-sm text-zinc-500 leading-relaxed">
+    <div style={{ maxWidth: 640, margin: '0 auto' }} className="animate-slide-up">
+      {/* Hero heading */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 999, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', marginBottom: 14 }}>
+          <Sparkles style={{ width: 12, height: 12, color: 'var(--accent)' }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', letterSpacing: '0.05em' }}>AI-POWERED VALIDATION</span>
+        </div>
+        <h1 style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.2, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+          Validate Your{' '}
+          <span className="grad-text">Startup Idea</span>
+        </h1>
+        <p style={{ marginTop: 10, fontSize: 14, color: 'var(--text2)', lineHeight: 1.6 }}>
           AI agents simulate real-world stakeholders — customers, investors, competitors — and deliver a 360° evaluation.
         </p>
       </div>
 
-      <div className="card p-6">
-        <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} className="space-y-4">
+      {/* Form card */}
+      <div className="card" style={{ padding: 24 }}>
+        <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label className="label-dark">Problem Statement</label>
-            <textarea name="problem_statement" required rows={2} className="input-dark resize-none"
+            <textarea name="problem_statement" required rows={2} className="input-dark" style={{ resize: 'none' }}
               placeholder="What exact problem are you solving? Who suffers from it?"
               value={form.problem_statement} onChange={set} />
           </div>
 
           <div>
             <label className="label-dark">Startup Idea</label>
-            <textarea name="idea" required rows={3} className="input-dark resize-none"
+            <textarea name="idea" required rows={3} className="input-dark" style={{ resize: 'none' }}
               placeholder="Describe your solution. What does it do and how does it work?"
               value={form.idea} onChange={set} />
           </div>
@@ -68,21 +77,24 @@ export default function IdeaForm({ onSubmit, isLoading }) {
             </div>
           </div>
 
-          <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5 mt-1">
+          <button type="submit" disabled={isLoading} className="btn-primary" style={{ width: '100%', paddingTop: 12, paddingBottom: 12, marginTop: 4 }}>
             {isLoading
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Analysing...</>
-              : <><span>Run Analysis</span><ArrowRight className="w-4 h-4 ml-auto" /></>
+              ? <><Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> Analysing your idea...</>
+              : <><span>Run Analysis</span><ArrowRight style={{ width: 16, height: 16, marginLeft: 'auto' }} /></>
             }
           </button>
         </form>
       </div>
 
-      <div className="mt-4">
-        <p className="text-xs text-zinc-600 mb-2 uppercase tracking-wider font-medium">Examples</p>
-        <div className="flex flex-wrap gap-2">
+      {/* Examples */}
+      <div style={{ marginTop: 16 }}>
+        <p style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Try an example</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {EXAMPLE_IDEAS.map((ex) => (
             <button key={ex.idea} type="button" onClick={() => setForm(ex)}
-              className="text-xs text-zinc-500 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-300 px-3 py-1.5 rounded-lg transition-colors">
+              style={{ fontSize: 11, color: 'var(--text2)', border: '1px solid var(--border)', background: 'transparent', padding: '6px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--surface-hover)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text2)'; e.currentTarget.style.background = 'transparent'; }}>
               {ex.idea}
             </button>
           ))}
