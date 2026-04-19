@@ -17,7 +17,7 @@ function ScoreRing({ score, size = 52 }) {
           strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
           style={{ transition: 'stroke-dashoffset 1s ease', filter: `drop-shadow(0 0 4px ${col}88)` }} />
       </svg>
-      <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: col }}>{score}</span>
+      <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size < 48 ? 10 : 11, fontWeight: 700, color: col }}>{score}</span>
     </div>
   );
 }
@@ -30,17 +30,17 @@ function ProgressBar({ value, color }) {
   );
 }
 
-function StatCard({ label, value, change, icon: Icon, color, subtitle }) {
+function StatCard({ label, value, change, icon: Icon, color, isMobile }) {
   return (
-    <div style={{ padding: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: `radial-gradient(circle at top right, ${color}22, transparent)`, borderRadius: '0 16px 0 100%' }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-        <div style={{ padding: 9, background: `${color}18`, borderRadius: 10, border: `1px solid ${color}28` }}>
-          <Icon size={18} color={color} />
+    <div style={{ padding: isMobile ? 14 : 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: 60, background: `radial-gradient(circle at top right, ${color}22, transparent)`, borderRadius: '0 16px 0 100%' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: isMobile ? 10 : 14 }}>
+        <div style={{ padding: isMobile ? 7 : 9, background: `${color}18`, borderRadius: 10, border: `1px solid ${color}28` }}>
+          <Icon size={isMobile ? 14 : 18} color={color} />
         </div>
-        {change !== undefined && (
+        {!isMobile && change !== undefined && (
           <span style={{
-            display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999,
+            display: 'inline-flex', alignItems: 'center', padding: '2px 7px', borderRadius: 999,
             fontSize: 11, fontWeight: 600,
             background: change >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(220,38,38,0.12)',
             color: change >= 0 ? '#34D399' : '#F87171',
@@ -48,9 +48,8 @@ function StatCard({ label, value, change, icon: Icon, color, subtitle }) {
           }}>{change >= 0 ? '↑' : '↓'} {Math.abs(change)}%</span>
         )}
       </div>
-      <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 5, fontWeight: 500 }}>{label}</div>
-      {subtitle && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{subtitle}</div>}
+      <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: isMobile ? 11 : 12, color: 'var(--text2)', marginTop: 4, fontWeight: 500, lineHeight: 1.3 }}>{label}</div>
     </div>
   );
 }
@@ -59,67 +58,67 @@ function scoreLabel(s) {
   return s >= 75 ? 'Strong' : s >= 60 ? 'Promising' : s >= 45 ? 'Needs Work' : 'High Risk';
 }
 
+function riskColor(risk) {
+  return risk === 'Low' ? { bg: 'rgba(16,185,129,0.12)', color: '#34D399', border: 'rgba(16,185,129,0.25)' }
+       : risk === 'Medium' ? { bg: 'rgba(245,158,11,0.12)', color: '#FBBF24', border: 'rgba(245,158,11,0.25)' }
+       : { bg: 'rgba(220,38,38,0.12)', color: '#F87171', border: 'rgba(220,38,38,0.25)' };
+}
+
 export default function MainDashboard({ history, onNewEval, onLoadReport, userName }) {
   const [hovered, setHovered] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [isTablet, setIsTablet] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
-    const fn = () => {
-      setIsMobile(window.innerWidth < 768);
-      setIsTablet(window.innerWidth < 1024);
-    };
+    const fn = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', fn);
     return () => window.removeEventListener('resize', fn);
   }, []);
 
-  const total    = history.length;
-  const avg      = total ? Math.round(history.reduce((s, e) => s + e.score, 0) / total) : 0;
-  const strong   = history.filter(e => e.score >= 75).length;
+  const total     = history.length;
+  const avg       = total ? Math.round(history.reduce((s, e) => s + e.score, 0) / total) : 0;
+  const strong    = history.filter(e => e.score >= 75).length;
   const promising = history.filter(e => e.score >= 55 && e.score < 75).length;
   const needsWork = history.filter(e => e.score < 55).length;
-  const highInv  = history.filter(e => e.score >= 75).length;
-  const recent   = history.slice(0, 4);
+  const highInv   = history.filter(e => e.score >= 75).length;
+  const recent    = history.slice(0, 4);
 
-  const hour     = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const hour      = new Date().getHours();
+  const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const displayName = userName ? userName.split(/[@\s]/)[0] : 'there';
 
-  const px = isMobile ? '16px' : '40px';
-
   return (
-    <div style={{ padding: isMobile ? '24px 16px' : '40px', maxWidth: 1100, margin: '0 auto' }} className="animate-fade-in">
+    <div style={{ padding: isMobile ? '20px 14px' : '40px', maxWidth: 1100, margin: '0 auto' }} className="animate-fade-in">
 
-      {/* ── Header ───────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: 28, gap: 12, flexWrap: 'wrap' }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 20 : 28, gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: isMobile ? 20 : 26, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)' }}>
+          <h1 style={{ fontSize: isMobile ? 18 : 26, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text)' }}>
             {greeting}, {displayName} 👋
           </h1>
-          <p style={{ color: 'var(--text2)', marginTop: 4, fontSize: 13 }}>
+          <p style={{ color: 'var(--text2)', marginTop: 3, fontSize: 12 }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <button onClick={onNewEval} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '9px 16px', flexShrink: 0 }}>
-          <Zap size={14} /> New Evaluation
+        <button onClick={onNewEval} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: isMobile ? '8px 13px' : '9px 16px', flexShrink: 0 }}>
+          <Zap size={13} /> New Eval
         </button>
       </div>
 
-      {/* ── Stat cards ───────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 28 }}>
-        <StatCard label="Total Evaluations"    value={total || '0'}                  change={total ? 12 : undefined}  icon={Layers}    color="#2563EB" subtitle="All time" />
-        <StatCard label="Avg. Viability Score" value={avg   || '—'}                  change={total ? 4  : undefined}  icon={BarChart2} color="#3B82F6" subtitle="Last 30 days" />
-        <StatCard label="Investors Flagged"    value={highInv || '0'}                                                  icon={DollarSign} color="#0EA5E9" subtitle="High potential" />
-        <StatCard label="Reports Exported"     value={Math.min(total, 8) || '0'}    change={total ? -2 : undefined}  icon={Download}  color="#10B981" subtitle="This month" />
+      {/* ── Stat cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: isMobile ? 10 : 16, marginBottom: isMobile ? 20 : 28 }}>
+        <StatCard label="Total Evaluations"    value={total || '0'} change={total ? 12 : undefined} icon={Layers}    color="#2563EB" isMobile={isMobile} />
+        <StatCard label="Avg. Score"           value={avg   || '—'} change={total ? 4  : undefined} icon={BarChart2} color="#3B82F6" isMobile={isMobile} />
+        <StatCard label="High Potential"       value={highInv || '0'}                               icon={DollarSign} color="#0EA5E9" isMobile={isMobile} />
+        <StatCard label="Reports Exported"     value={Math.min(total, 8) || '0'}                    icon={Download}  color="#10B981" isMobile={isMobile} />
       </div>
 
-      {/* ── Main grid ────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : '1fr 300px', gap: 20 }}>
+      {/* ── Main grid ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Recent evaluations */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--text)' }}>Recent Evaluations</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--text)' }}>Recent Evaluations</h2>
             {history.length > 4 && (
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3, fontFamily: 'var(--font)' }}>
                 View all <ChevronRight size={12} />
@@ -128,7 +127,7 @@ export default function MainDashboard({ history, onNewEval, onLoadReport, userNa
           </div>
 
           {recent.length === 0 ? (
-            <div style={{ padding: '40px 24px', background: 'var(--surface)', border: '1px dashed var(--border-strong)', borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+            <div style={{ padding: '36px 20px', background: 'var(--surface)', border: '1px dashed var(--border-strong)', borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
               <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(37,99,235,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Zap size={20} color="#2563EB" />
               </div>
@@ -141,81 +140,78 @@ export default function MainDashboard({ history, onNewEval, onLoadReport, userNa
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {recent.map((ev, i) => (
-                <div key={ev.id}
-                  onMouseEnter={() => setHovered(ev.id)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => onLoadReport(ev)}
-                  style={{
-                    padding: isMobile ? '14px' : '16px 20px', borderRadius: 14, cursor: 'pointer',
-                    background: hovered === ev.id ? 'var(--surface-hover)' : 'var(--surface)',
-                    border: `1px solid ${hovered === ev.id ? 'var(--border-strong)' : 'var(--border)'}`,
-                    transition: 'all 0.18s', transform: hovered === ev.id && !isMobile ? 'translateX(3px)' : 'none',
-                    display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 16,
-                  }}>
-                  <ScoreRing score={ev.score} size={isMobile ? 44 : 52} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: isMobile ? 13 : 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{ev.idea}</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Clock size={10} /> {ev.date}
-                      </span>
-                      <span style={{
-                        fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 999,
-                        background: ev.risk === 'Low' ? 'rgba(16,185,129,0.12)' : ev.risk === 'Medium' ? 'rgba(245,158,11,0.12)' : 'rgba(220,38,38,0.12)',
-                        color: ev.risk === 'Low' ? '#34D399' : ev.risk === 'Medium' ? '#FBBF24' : '#F87171',
-                        border: `1px solid ${ev.risk === 'Low' ? 'rgba(16,185,129,0.25)' : ev.risk === 'Medium' ? 'rgba(245,158,11,0.25)' : 'rgba(220,38,38,0.25)'}`,
-                      }}>{ev.risk} Risk</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {recent.map((ev) => {
+                const rc = riskColor(ev.risk);
+                return (
+                  <div key={ev.id}
+                    onMouseEnter={() => setHovered(ev.id)}
+                    onMouseLeave={() => setHovered(null)}
+                    onClick={() => onLoadReport(ev)}
+                    style={{
+                      padding: '13px 14px', borderRadius: 14, cursor: 'pointer',
+                      background: hovered === ev.id ? 'var(--surface-hover)' : 'var(--surface)',
+                      border: `1px solid ${hovered === ev.id ? 'var(--border-strong)' : 'var(--border)'}`,
+                      transition: 'all 0.18s',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                    }}>
+                    <ScoreRing score={ev.score} size={isMobile ? 40 : 48} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 5 }}>{ev.idea}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <Clock size={10} /> {ev.date}
+                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: rc.bg, color: rc.color, border: `1px solid ${rc.border}` }}>
+                          {ev.risk} Risk
+                        </span>
+                        {!isMobile && (
+                          <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 999, background: 'var(--bg3)', color: 'var(--text2)' }}>
+                            {scoreLabel(ev.score)}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <ChevronRight size={14} color="var(--text3)" style={{ flexShrink: 0 }} />
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                    <span style={{
-                      display: 'inline-flex', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-                      background: ev.score >= 75 ? 'rgba(16,185,129,0.12)' : ev.score >= 55 ? 'rgba(245,158,11,0.12)' : 'rgba(220,38,38,0.12)',
-                      color: ev.score >= 75 ? '#34D399' : ev.score >= 55 ? '#FBBF24' : '#F87171',
-                      border: `1px solid ${ev.score >= 75 ? 'rgba(16,185,129,0.25)' : ev.score >= 55 ? 'rgba(245,158,11,0.25)' : 'rgba(220,38,38,0.25)'}`,
-                    }}>{scoreLabel(ev.score)}</span>
-                    {!isMobile && <ChevronRight size={13} color="var(--text3)" />}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Right panel */}
-        <div style={{ display: 'flex', flexDirection: isTablet && !isMobile ? 'row' : 'column', gap: 16 }}>
+        {/* Bottom panels — stack on mobile, side-by-side on desktop */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 14 }}>
 
           {/* Quick start */}
           <div onClick={onNewEval} style={{
-            padding: 20, borderRadius: 16, cursor: 'pointer', flex: isTablet && !isMobile ? 1 : undefined,
+            padding: 18, borderRadius: 16, cursor: 'pointer',
             background: 'linear-gradient(135deg, rgba(37,99,235,0.15), rgba(8,145,178,0.1))',
             border: '1px solid rgba(37,99,235,0.2)', position: 'relative', overflow: 'hidden',
           }}>
-            <div style={{ position: 'absolute', top: -20, right: -20, width: 90, height: 90, background: 'radial-gradient(circle, rgba(37,99,235,0.2), transparent)', borderRadius: '50%', pointerEvents: 'none' }} />
-            <div style={{ padding: 9, background: 'rgba(37,99,235,0.2)', borderRadius: 10, display: 'inline-flex', marginBottom: 12 }}>
-              <Zap size={18} color="#60A5FA" />
+            <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, background: 'radial-gradient(circle, rgba(37,99,235,0.2), transparent)', borderRadius: '50%', pointerEvents: 'none' }} />
+            <div style={{ padding: 8, background: 'rgba(37,99,235,0.2)', borderRadius: 10, display: 'inline-flex', marginBottom: 10 }}>
+              <Zap size={16} color="#60A5FA" />
             </div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>Start New Evaluation</h3>
-            <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 14 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 5, color: 'var(--text)' }}>Start New Evaluation</h3>
+            <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 12 }}>
               Submit your idea and get a full AI analysis in under 60 seconds.
             </p>
-            <button onClick={onNewEval} className="btn-primary" style={{ fontSize: 12, padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 5 }}>
-              Begin Now <ArrowRight size={13} />
+            <button onClick={onNewEval} className="btn-primary" style={{ fontSize: 12, padding: '7px 13px', display: 'flex', alignItems: 'center', gap: 5 }}>
+              Begin Now <ArrowRight size={12} />
             </button>
           </div>
 
           {/* Score distribution */}
-          <div style={{ padding: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, flex: isTablet && !isMobile ? 1 : undefined }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text)' }}>Score Distribution</h3>
+          <div style={{ padding: 18, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text)' }}>Score Distribution</h3>
             {[
-              ['Strong (75–100)',   strong,     '#10B981'],
-              ['Promising (55–74)', promising,  '#F59E0B'],
-              ['Needs Work (<55)',  needsWork,  '#EF4444'],
+              ['Strong (75–100)',   strong,    '#10B981'],
+              ['Promising (55–74)', promising, '#F59E0B'],
+              ['Needs Work (<55)',  needsWork, '#EF4444'],
             ].map(([l, v, c]) => (
-              <div key={l} style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+              <div key={l} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 12, color: 'var(--text2)' }}>{l}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: c }}>{v}</span>
                 </div>
@@ -225,12 +221,12 @@ export default function MainDashboard({ history, onNewEval, onLoadReport, userNa
           </div>
 
           {/* Top risk flags */}
-          <div style={{ padding: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, flex: isTablet && !isMobile ? 1 : undefined }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: 'var(--text)' }}>Top Risk Flags</h3>
+          <div style={{ padding: 18, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: 'var(--text)' }}>Top Risk Flags</h3>
             {[
-              { label: 'Market saturation',   count: 7, icon: TrendingUp,  color: '#EF4444' },
-              { label: 'Regulatory barriers', count: 5, icon: Shield,      color: '#F59E0B' },
-              { label: 'Unit economics',       count: 4, icon: DollarSign, color: '#3B82F6' },
+              { label: 'Market saturation',   count: strong + 2,    icon: TrendingUp,  color: '#EF4444' },
+              { label: 'Regulatory barriers', count: needsWork + 1,  icon: Shield,      color: '#F59E0B' },
+              { label: 'Unit economics',       count: promising + 1, icon: DollarSign,  color: '#3B82F6' },
             ].map(r => {
               const Icon = r.icon;
               return (
@@ -239,11 +235,12 @@ export default function MainDashboard({ history, onNewEval, onLoadReport, userNa
                     <Icon size={12} color={r.color} />
                   </div>
                   <span style={{ flex: 1, fontSize: 12, color: 'var(--text2)' }}>{r.label}</span>
-                  <span style={{ display: 'inline-flex', padding: '2px 7px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: 'rgba(220,38,38,0.12)', color: '#F87171', border: '1px solid rgba(220,38,38,0.25)' }}>{r.count}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: 'rgba(220,38,38,0.12)', color: '#F87171', border: '1px solid rgba(220,38,38,0.25)' }}>{r.count}</span>
                 </div>
               );
             })}
           </div>
+
         </div>
       </div>
     </div>
