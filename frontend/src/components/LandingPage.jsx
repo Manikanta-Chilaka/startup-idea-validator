@@ -9,9 +9,9 @@ const FEATURES = [
 ];
 
 const TESTIMONIALS = [
-  { name: 'Sarah Chen',    role: 'Founder @ Flux Labs',    score: 82, text: 'Validated our SaaS idea in minutes. The investor agent caught a monetization flaw we had completely missed.' },
-  { name: 'Marcus Rivera', role: 'Partner @ Apex Ventures', score: 91, text: 'We now run every pitch through Validate AI before taking a meeting. It surfaces blind spots instantly.' },
-  { name: 'Priya Nair',    role: 'Founder @ HealthStack',  score: 74, text: "The regulatory agent flagged compliance risks we would've hit at Series A. Saved us months of pain." },
+  { name: 'Sonali',    role: 'Founder @ Sonali Labs',    score: 82, text: 'Validated our SaaS idea in minutes. The investor agent caught a monetization flaw we had completely missed.' },
+  { name: 'Manikanta', role: 'Partner @ Loading Ventures', score: 91, text: 'We now run every pitch through Validate AI before taking a meeting. It surfaces blind spots instantly.' },
+      
 ];
 
 const AGENTS = [
