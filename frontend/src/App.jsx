@@ -4,12 +4,16 @@ import {
   Settings, Bell, Search, ChevronRight,
   Trash2, Clock, AlertCircle,
   CheckCircle2, Loader2, Zap, Menu, X,
-  ChevronLeft
+  ChevronLeft, LogOut
 } from 'lucide-react';
 import IdeaForm from './components/IdeaForm';
 import Dashboard from './components/Dashboard';
 import ScoreTrend from './components/ScoreTrend';
+import Login from './components/Login';
+import LandingPage from './components/LandingPage';
+import MainDashboard from './components/MainDashboard';
 import { evaluateIdeaStream, checkHealth } from './api';
+import { supabase } from './supabaseClient';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard',    id: 'dashboard' },
@@ -27,6 +31,9 @@ function loadHistory() {
 function saveHistory(e) { localStorage.setItem(HISTORY_KEY, JSON.stringify(e)); }
 
 export default function App() {
+  const [session, setSession]             = useState(null);
+  const [authReady, setAuthReady]         = useState(false);
+  const [showAuth, setShowAuth]           = useState(false);
   const [report, setReport]               = useState(null);
   const [isLoading, setIsLoading]         = useState(false);
   const [error, setError]                 = useState(null);
@@ -38,8 +45,30 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      setAuthReady(true);
+    });
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     checkHealth().then(h => setHealth({ ...h, checked: true }));
   }, []);
+
+  if (!authReady) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid rgba(37,99,235,0.2)', borderTopColor: '#2563EB', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
+  if (!session && !showAuth) return <LandingPage onGetStarted={() => setShowAuth(true)} />;
+  if (!session) return <Login onBack={() => setShowAuth(false)} />;
+
+  const handleLogout = () => supabase.auth.signOut();
 
   const handleNavClick = (id) => {
     setActiveNav(id);
@@ -89,7 +118,7 @@ export default function App() {
       <div style={{ padding: collapsed ? '20px 16px' : '24px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: collapsed ? 'center' : 'space-between' }}>
         {!collapsed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(99,102,241,0.4)', flexShrink: 0 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #2563EB, #0EA5E9)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(37,99,235,0.4)', flexShrink: 0 }}>
               <Zap size={16} color="#fff" strokeWidth={2.5} />
             </div>
             <div>
@@ -99,7 +128,7 @@ export default function App() {
           </div>
         )}
         {collapsed && (
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #2563EB, #0EA5E9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Zap size={16} color="#fff" strokeWidth={2.5} />
           </div>
         )}
@@ -113,7 +142,7 @@ export default function App() {
       {/* New Evaluation CTA */}
       <div style={{ padding: collapsed ? '12px 8px' : '12px 12px 4px' }}>
         {!collapsed && (
-          <button onClick={() => handleNavClick('new')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(99,102,241,0.3)', cursor: 'pointer', background: activeNav === 'new' ? 'linear-gradient(135deg, #6366F1, #8B5CF6)' : 'rgba(99,102,241,0.1)', color: activeNav === 'new' ? '#fff' : '#818CF8', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font)', transition: 'all 0.15s' }}>
+          <button onClick={() => handleNavClick('new')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(99,102,241,0.3)', cursor: 'pointer', background: activeNav === 'new' ? 'linear-gradient(135deg, #1D4ED8, #2563EB)' : 'rgba(37,99,235,0.1)', color: activeNav === 'new' ? '#fff' : '#60A5FA', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font)', transition: 'all 0.15s', border: '1px solid rgba(37,99,235,0.2)' }}>
             <PlusCircle size={15} />
             New Evaluation
           </button>
@@ -138,7 +167,7 @@ export default function App() {
         })}
         {collapsed && (
           <button onClick={() => handleNavClick('new')} title="New Evaluation"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10, borderRadius: 10, border: 'none', cursor: 'pointer', background: activeNav === 'new' ? 'rgba(99,102,241,0.2)' : 'transparent', color: '#818CF8', transition: 'all 0.15s', width: '100%' }}>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10, borderRadius: 10, border: 'none', cursor: 'pointer', background: activeNav === 'new' ? 'rgba(37,99,235,0.2)' : 'transparent', color: '#60A5FA', transition: 'all 0.15s', width: '100%' }}>
             <PlusCircle size={16} />
           </button>
         )}
@@ -210,7 +239,13 @@ export default function App() {
             <Bell size={16} />
           </button>
 
-          <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg, #6366F1, #06B6D4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer' }}>F</div>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg, #2563EB, #0EA5E9)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', cursor: 'pointer' }} title={session?.user?.user_metadata?.full_name || session?.user?.email}>
+            {(session?.user?.user_metadata?.full_name || session?.user?.email || 'U').charAt(0).toUpperCase()}
+          </div>
+
+          <button onClick={handleLogout} title="Sign out" style={{ padding: 6, borderRadius: 8, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <LogOut size={16} />
+          </button>
         </header>
 
         {/* Content */}
@@ -260,8 +295,16 @@ export default function App() {
             </div>
           )}
 
+          {!isLoading && activeNav === 'dashboard' && !report && (
+            <MainDashboard
+              history={ideaHistory}
+              onNewEval={() => handleNavClick('new')}
+              onLoadReport={handleLoadHistory}
+              userName={session?.user?.user_metadata?.full_name || session?.user?.email}
+            />
+          )}
           {!isLoading && activeNav === 'dashboard' && report && <Dashboard report={report} onReset={handleReset} />}
-          {!isLoading && (activeNav === 'new' || (activeNav === 'dashboard' && !report)) && <IdeaForm onSubmit={handleSubmit} isLoading={isLoading} />}
+          {!isLoading && activeNav === 'new' && <IdeaForm onSubmit={handleSubmit} isLoading={isLoading} />}
 
           {/* History */}
           {!isLoading && activeNav === 'history' && (

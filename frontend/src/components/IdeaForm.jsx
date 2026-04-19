@@ -32,7 +32,7 @@ export default function IdeaForm({ onSubmit, isLoading }) {
     <div style={{ maxWidth: 640, margin: '0 auto' }} className="animate-slide-up">
       {/* Hero heading */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 999, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', marginBottom: 14 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 999, background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)', marginBottom: 14 }}>
           <Sparkles style={{ width: 12, height: 12, color: 'var(--accent)' }} />
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', letterSpacing: '0.05em' }}>AI-POWERED VALIDATION</span>
         </div>
