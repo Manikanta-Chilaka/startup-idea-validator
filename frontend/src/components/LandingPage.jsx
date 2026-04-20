@@ -170,7 +170,7 @@ export default function LandingPage({ onGetStarted }) {
               with AI Agents
             </h1>
             <p style={{ fontSize: isMobile ? 15 : 17, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 32, maxWidth: isMobile ? '100%' : 480 }}>
-              Four specialized AI agents evaluate your idea from every angle — investor viability, market fit, competitive landscape, and regulatory risk. In under 60 seconds.
+              Four specialized AI agents evaluate your idea from every angle investor viability, market fit, competitive landscape, and regulatory risk. In under 60 seconds.
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
               <button onClick={onGetStarted} className="btn-primary" style={{ fontSize: 15, padding: '13px 24px' }}>
