@@ -24,6 +24,15 @@ def _client() -> AsyncGroq:
 _groq_sem = asyncio.Semaphore(2)
 
 
+def _clamp(val, lo: int, hi: int, default: int) -> int:
+    """Coerce a model-returned value to an int within [lo, hi], falling back to default."""
+    try:
+        v = int(val)
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(hi, v))
+
+
 def strip_emojis(text: str) -> str:
     pattern = re.compile(
         "[\U00010000-\U0010ffff"
@@ -163,15 +172,26 @@ async def generate_agent_roles(idea_input: IdeaInput) -> List[dict]:
 
 # ── Aggregation helpers (shared by both entry points) ─────────────────────────
 
-def _build_report(idea_input: IdeaInput, agents_data: List[AgentResponse]) -> EvaluationReport:
-    adoption_probs = [a.adoption_probability for a in agents_data]
+# Effective scores prefer the post-debate (revised) value when present, else round 1.
+def _eff_interest(a: AgentResponse) -> int:
+    return a.revised_interest_score if a.revised_interest_score is not None else a.interest_score
+
+def _eff_risk(a: AgentResponse) -> int:
+    return a.revised_risk_score if a.revised_risk_score is not None else a.risk_score
+
+def _eff_adoption(a: AgentResponse) -> int:
+    return a.revised_adoption_probability if a.revised_adoption_probability is not None else a.adoption_probability
+
+
+def _build_report(idea_input: IdeaInput, agents_data: List[AgentResponse], debate_summary: str = "") -> EvaluationReport:
+    adoption_probs = [_eff_adoption(a) for a in agents_data]
     adoption_score = sum(adoption_probs) // len(adoption_probs) if adoption_probs else 50
-    avg_risk       = sum(a.risk_score for a in agents_data) / len(agents_data) if agents_data else 5
+    avg_risk       = sum(_eff_risk(a) for a in agents_data) / len(agents_data) if agents_data else 5
 
     market_risk = "Low" if avg_risk < 4 else "Medium" if avg_risk < 7 else "High"
 
     investor = next((a for a in agents_data if "investor" in a.agent_name.lower() or "capital" in a.agent_name.lower()), None)
-    investment_interest = investor.interest_score if investor else sum(a.interest_score for a in agents_data) // len(agents_data)
+    investment_interest = _eff_interest(investor) if investor else sum(_eff_interest(a) for a in agents_data) // len(agents_data)
 
     _error_str = "failed to generate response"
     all_concerns:      List[str] = []
@@ -200,7 +220,74 @@ def _build_report(idea_input: IdeaInput, agents_data: List[AgentResponse]) -> Ev
         suggested_improvements=suggestions[:5],
         overall_score=int((adoption_score + (investment_interest * 10) + ((10 - avg_risk) * 10)) / 3),
         agent_responses=agents_data,
+        debate_summary=debate_summary or None,
     )
+
+
+# ── Debate round (round 2) ────────────────────────────────────────────────────
+
+async def run_debate(idea_context: str, agents_data: List[AgentResponse]) -> tuple[List[AgentResponse], str]:
+    """A single batched LLM call: every agent sees the others' first-round verdicts and may
+    revise its scores. One request keeps us comfortably inside Groq's free-tier limits.
+    Mutates and returns agents_data (revised_* fields filled in) plus a consensus summary."""
+    panel_lines = []
+    for a in agents_data:
+        panel_lines.append(
+            f"- {a.agent_name}: interest={a.interest_score}/10, risk={a.risk_score}/10, "
+            f"adoption={a.adoption_probability}%. "
+            f"Top concern: {a.concerns[0] if a.concerns else 'none'}. "
+            f"Top opportunity: {a.opportunities[0] if a.opportunities else 'none'}."
+        )
+    panel_text = "\n".join(panel_lines)
+
+    system = (
+        "You are the moderator of a panel debate between startup-evaluation stakeholders. "
+        "Each panelist gave an independent first-round verdict; now they can see each other's views. "
+        "A credible panelist updates their scores when another raises a point they had not considered, "
+        "but holds firm when they genuinely disagree. Do NOT force everyone to converge to the middle."
+    )
+    user = (
+        f"STARTUP IDEA:\n{idea_context}\n\n"
+        f"FIRST-ROUND VERDICTS:\n{panel_text}\n\n"
+        "Simulate ONE round of debate. For EACH panelist, give their revised position after hearing the others.\n\n"
+        "Return valid JSON with these keys:\n"
+        "  revisions: a list with one object per panelist, each containing:\n"
+        "    agent_name (string — must match one of the names above exactly)\n"
+        "    revised_interest_score (int 1-10)\n"
+        "    revised_risk_score (int 1-10)\n"
+        "    revised_adoption_probability (int 0-100)\n"
+        "    reasoning (string, 1-2 sentences: what changed their mind — name the panelist who influenced "
+        "them — or why they held firm)\n"
+        "  consensus_summary (string, 2-3 sentences: where the panel converged and where it stayed divided)"
+    )
+    logger.info("Running debate round (batched)...")
+    async with _groq_sem:
+        response = await _client().chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": user},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.6,
+            max_tokens=1500,
+        )
+    parsed = json.loads(response.choices[0].message.content)
+
+    by_name = {a.agent_name.lower(): a for a in agents_data}
+    for rev in parsed.get("revisions", []):
+        name = strip_emojis(rev.get("agent_name", "")).lower().strip()
+        agent = by_name.get(name)
+        if agent is None and name:  # fall back to a fuzzy contains-match
+            agent = next((a for a in agents_data
+                          if name in a.agent_name.lower() or a.agent_name.lower() in name), None)
+        if agent is not None:
+            agent.revised_interest_score       = _clamp(rev.get("revised_interest_score"), 1, 10, agent.interest_score)
+            agent.revised_risk_score           = _clamp(rev.get("revised_risk_score"), 1, 10, agent.risk_score)
+            agent.revised_adoption_probability = _clamp(rev.get("revised_adoption_probability"), 0, 100, agent.adoption_probability)
+            agent.debate_reasoning             = strip_emojis(rev.get("reasoning", "")) or None
+
+    return agents_data, strip_emojis(parsed.get("consensus_summary", ""))
 
 
 # ── Competitor research (Tavily → Groq) ──────────────────────────────────────
@@ -320,7 +407,15 @@ async def evaluate_idea(idea_input: IdeaInput) -> EvaluationReport:
         )
         for s in generated_agents
     ]))
-    return _build_report(idea_input, agents_data)
+
+    debate_summary = ""
+    if len(agents_data) > 1:
+        try:
+            agents_data, debate_summary = await run_debate(context, agents_data)
+        except Exception as e:
+            logger.error(f"Debate round failed, using first-round scores: {e}")
+
+    return _build_report(idea_input, agents_data, debate_summary)
 
 
 async def stream_evaluate_idea(idea_input: IdeaInput, queue: asyncio.Queue) -> None:
@@ -352,8 +447,18 @@ async def stream_evaluate_idea(idea_input: IdeaInput, queue: asyncio.Queue) -> N
             await asyncio.gather(*[run_with_progress(s) for s in generated_agents])
         )
 
+        # ── Debate round: agents see each other and reconsider (single batched call) ──
+        debate_summary = ""
+        if len(agents_data) > 1:
+            await queue.put({"type": "debate_start", "message": "Agents are debating and reconsidering..."})
+            try:
+                agents_data, debate_summary = await run_debate(context, agents_data)
+            except Exception as e:
+                logger.error(f"Debate round failed, using first-round scores: {e}")
+            await queue.put({"type": "debate_done"})
+
         await queue.put({"type": "status", "message": "Aggregating results and building report..."})
-        report = _build_report(idea_input, agents_data)
+        report = _build_report(idea_input, agents_data, debate_summary)
         await queue.put({"type": "result", "report": report.model_dump()})
     except Exception as e:
         logger.error(f"Streaming error: {e}")

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  Layers, BarChart2, DollarSign, Download,
-  ArrowRight, Zap, TrendingUp, Shield, ChevronRight, Clock
+  Layers, BarChart2, DollarSign,
+  ArrowRight, Zap, TrendingUp, Shield, ChevronRight, Clock,
+  AlertTriangle, CheckCircle2
 } from 'lucide-react';
 
 function ScoreRing({ score, size = 52 }) {
@@ -76,10 +77,13 @@ export default function MainDashboard({ history, onNewEval, onLoadReport, userNa
 
   const total     = history.length;
   const avg       = total ? Math.round(history.reduce((s, e) => s + e.score, 0) / total) : 0;
+  const best      = total ? Math.max(...history.map(e => e.score)) : 0;
   const strong    = history.filter(e => e.score >= 75).length;
   const promising = history.filter(e => e.score >= 55 && e.score < 75).length;
   const needsWork = history.filter(e => e.score < 55).length;
-  const highInv   = history.filter(e => e.score >= 75).length;
+  const highRisk  = history.filter(e => e.risk === 'High').length;
+  const medRisk   = history.filter(e => e.risk === 'Medium').length;
+  const lowRisk   = history.filter(e => e.risk === 'Low').length;
   const recent    = history.slice(0, 4);
 
   const hour      = new Date().getHours();
@@ -106,10 +110,10 @@ export default function MainDashboard({ history, onNewEval, onLoadReport, userNa
 
       {/* ── Stat cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: isMobile ? 10 : 16, marginBottom: isMobile ? 20 : 28 }}>
-        <StatCard label="Total Evaluations"    value={total || '0'} change={total ? 12 : undefined} icon={Layers}    color="#2563EB" isMobile={isMobile} />
-        <StatCard label="Avg. Score"           value={avg   || '—'} change={total ? 4  : undefined} icon={BarChart2} color="#3B82F6" isMobile={isMobile} />
-        <StatCard label="High Potential"       value={highInv || '0'}                               icon={DollarSign} color="#0EA5E9" isMobile={isMobile} />
-        <StatCard label="Reports Exported"     value={Math.min(total, 8) || '0'}                    icon={Download}  color="#10B981" isMobile={isMobile} />
+        <StatCard label="Total Evaluations"    value={total || '0'}            icon={Layers}     color="#2563EB" isMobile={isMobile} />
+        <StatCard label="Avg. Score"           value={avg ? `${avg}%` : '—'}   icon={BarChart2}  color="#3B82F6" isMobile={isMobile} />
+        <StatCard label="High Potential"       value={strong || '0'}           icon={DollarSign} color="#0EA5E9" isMobile={isMobile} />
+        <StatCard label="Best Score"           value={best ? `${best}%` : '—'} icon={TrendingUp} color="#10B981" isMobile={isMobile} />
       </div>
 
       {/* ── Main grid ── */}
@@ -220,13 +224,13 @@ export default function MainDashboard({ history, onNewEval, onLoadReport, userNa
             ))}
           </div>
 
-          {/* Top risk flags */}
+          {/* Risk breakdown — real counts from your evaluations */}
           <div style={{ padding: 18, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: 'var(--text)' }}>Top Risk Flags</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: 'var(--text)' }}>Risk Breakdown</h3>
             {[
-              { label: 'Market saturation',   count: strong + 2,    icon: TrendingUp,  color: '#EF4444' },
-              { label: 'Regulatory barriers', count: needsWork + 1,  icon: Shield,      color: '#F59E0B' },
-              { label: 'Unit economics',       count: promising + 1, icon: DollarSign,  color: '#3B82F6' },
+              { label: 'High Risk',   count: highRisk, icon: AlertTriangle, color: '#EF4444' },
+              { label: 'Medium Risk', count: medRisk,  icon: Shield,        color: '#F59E0B' },
+              { label: 'Low Risk',    count: lowRisk,  icon: CheckCircle2,  color: '#10B981' },
             ].map(r => {
               const Icon = r.icon;
               return (
@@ -235,10 +239,11 @@ export default function MainDashboard({ history, onNewEval, onLoadReport, userNa
                     <Icon size={12} color={r.color} />
                   </div>
                   <span style={{ flex: 1, fontSize: 12, color: 'var(--text2)' }}>{r.label}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: 'rgba(220,38,38,0.12)', color: '#F87171', border: '1px solid rgba(220,38,38,0.25)' }}>{r.count}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: `${r.color}1f`, color: r.color, border: `1px solid ${r.color}40` }}>{r.count}</span>
                 </div>
               );
             })}
+            {total === 0 && <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 10 }}>Run an evaluation to see your risk breakdown.</p>}
           </div>
 
         </div>

@@ -36,7 +36,7 @@ export default function App() {
   const [health, setHealth]               = useState({ backend: false, ollama: false, tavily: false, model: '', checked: false });
   const [ideaHistory, setIdeaHistory]     = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [progress, setProgress]           = useState({ status: '', agents: [], completedAgents: [], activeAgent: null });
+  const [progress, setProgress]           = useState({ status: '', agents: [], completedAgents: [], activeAgent: null, debating: false, debateDone: false });
   const [sidebarOpen, setSidebarOpen]     = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -98,7 +98,7 @@ export default function App() {
   const handleSubmit = async (formData) => {
     setIsLoading(true);
     setError(null);
-    setProgress({ status: '', agents: [], completedAgents: [], activeAgent: null });
+    setProgress({ status: '', agents: [], completedAgents: [], activeAgent: null, debating: false, debateDone: false });
     try {
       let finalReport = null;
       await evaluateIdeaStream(formData, (event) => {
@@ -106,6 +106,8 @@ export default function App() {
         else if (event.type === 'agents_ready') setProgress(p => ({ ...p, agents: event.agents, status: 'Consulting agents in parallel...' }));
         else if (event.type === 'agent_start')  setProgress(p => ({ ...p, activeAgent: event.name }));
         else if (event.type === 'agent_done')   setProgress(p => ({ ...p, completedAgents: [...p.completedAgents, event.name], activeAgent: null }));
+        else if (event.type === 'debate_start') setProgress(p => ({ ...p, debating: true, status: event.message || 'Agents are debating...' }));
+        else if (event.type === 'debate_done')  setProgress(p => ({ ...p, debating: false, debateDone: true }));
         else if (event.type === 'result')       finalReport = event.report;
       });
       if (finalReport) {
@@ -323,6 +325,17 @@ export default function App() {
                         </div>
                       );
                     })}
+                    {(progress.debating || progress.debateDone) && (
+                      <div className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ border: `1px solid ${progress.debating ? 'rgba(99,102,241,0.3)' : 'var(--border)'}`, background: progress.debating ? 'rgba(99,102,241,0.05)' : 'transparent', transition: 'all 0.2s' }}>
+                        {progress.debateDone
+                          ? <CheckCircle2 size={14} style={{ color: '#10B981', flexShrink: 0 }} />
+                          : <Loader2 size={14} style={{ color: 'var(--accent)', flexShrink: 0, animation: 'spin 0.8s linear infinite' }} />
+                        }
+                        <span style={{ flex: 1, fontSize: 12, color: progress.debating ? 'var(--text)' : 'var(--text3)' }}>Panel debate &amp; consensus</span>
+                        {progress.debating  && <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>Debating</span>}
+                        {progress.debateDone && <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>Done</span>}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

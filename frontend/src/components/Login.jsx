@@ -2,6 +2,15 @@ import { useState } from 'react';
 import { Zap, Mail, Lock, Eye, EyeOff, AlertCircle, User, ChevronRight } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
+function getEmailRedirectUrl() {
+  const configuredUrl = import.meta.env.VITE_SITE_URL?.trim();
+
+  if (configuredUrl) return configuredUrl;
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+
+  return undefined;
+}
+
 export default function Login({ onBack }) {
   const [mode, setMode]         = useState('login');
   const [email, setEmail]       = useState('');
@@ -23,9 +32,13 @@ export default function Login({ onBack }) {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) setError(err.message);
     } else {
+      const emailRedirectTo = getEmailRedirectUrl();
       const { data, error: err } = await supabase.auth.signUp({
         email, password,
-        options: { data: { full_name: name } },
+        options: {
+          data: { full_name: name },
+          emailRedirectTo,
+        },
       });
       if (err) setError(err.message);
       else if (!data.session) {

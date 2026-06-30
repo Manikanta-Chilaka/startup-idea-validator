@@ -12,7 +12,7 @@ import {
   Target, BarChart2, User, Stethoscope,
   Activity, Lightbulb, ArrowUpRight, RefreshCw,
   Flag, ThumbsUp, ThumbsDown, Download, Zap, Info,
-  Search, TrendingUp, Loader2
+  Search, TrendingUp, Loader2, Scale, MessagesSquare
 } from 'lucide-react';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, ArcElement);
@@ -129,7 +129,9 @@ function agentIcon(name) {
 function AgentCard({ agent }) {
   const [expanded, setExpanded] = useState(false);
   const { Icon, color, bg } = agentIcon(agent.agent_name);
-  const conf = Math.round((agent.interest_score / 10) * 100);
+  const effInterest = agent.revised_interest_score != null ? agent.revised_interest_score : agent.interest_score;
+  const wasRevised = agent.revised_interest_score != null && agent.revised_interest_score !== agent.interest_score;
+  const conf = Math.round((effInterest / 10) * 100);
   const isLong = agent.feedback.length > 120;
   const confKey = conf >= 65 ? 'green' : conf >= 40 ? 'amber' : 'red';
 
@@ -141,9 +143,12 @@ function AgentCard({ agent }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.agent_name}</p>
-          <p style={{ fontSize: 11, color: 'var(--text3)' }}>{agent.interest_score}/10</p>
+          <p style={{ fontSize: 11, color: 'var(--text3)' }}>
+            {effInterest}/10
+            {wasRevised && <span style={{ color: 'var(--accent)' }} title="Revised after the debate round"> · was {agent.interest_score}</span>}
+          </p>
         </div>
-        <ScoreRing score={agent.interest_score * 10} size={40} />
+        <ScoreRing score={effInterest * 10} size={40} />
       </div>
 
       <div>
@@ -184,6 +189,61 @@ const POSITION_STYLES = {
   'Emerging':           'badge-blue',
 };
 
+// ─── Debate Room ──────────────────────────────────────────
+function DeltaChip({ label, from, to, invert = false }) {
+  const delta = to - from;
+  const changed = delta !== 0;
+  const good = invert ? delta < 0 : delta > 0;       // for risk, lower is better
+  const color = !changed ? 'var(--text3)' : good ? '#34D399' : '#F87171';
+  const bg    = !changed ? 'var(--bg3)'   : good ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+  const arrow = !changed ? '·' : delta > 0 ? '↑' : '↓';
+  return (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: bg, color, whiteSpace: 'nowrap' }}>
+      {label} {from}{changed ? ` → ${to}` : ''} {arrow}
+    </span>
+  );
+}
+
+function DebateRoom({ report }) {
+  const { debate_summary, agent_responses } = report;
+  const revised = agent_responses.filter(a => a.debate_reasoning);
+  if (!debate_summary && revised.length === 0) return null;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <MessagesSquare style={{ width: 15, height: 15, color: 'var(--accent)' }} />
+        <p className="section-title" style={{ margin: 0 }}>Agent Debate Room</p>
+      </div>
+
+      {debate_summary && (
+        <div className="card p-4" style={{ borderColor: 'rgba(99,102,241,0.2)', background: 'rgba(99,102,241,0.05)', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Scale style={{ width: 14, height: 14, color: 'var(--accent)' }} />
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Panel Consensus</p>
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>{debate_summary}</p>
+        </div>
+      )}
+
+      {revised.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {revised.map((a, i) => (
+            <div key={i} className="card p-3" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{a.agent_name}</span>
+                <DeltaChip label="interest" from={a.interest_score} to={a.revised_interest_score ?? a.interest_score} />
+                <DeltaChip label="risk" from={a.risk_score} to={a.revised_risk_score ?? a.risk_score} invert />
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5, fontStyle: 'italic' }}>"{a.debate_reasoning}"</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────
 export default function Dashboard({ report, onReset }) {
   const [competitors, setCompetitors]           = useState(null);
@@ -208,7 +268,12 @@ export default function Dashboard({ report, onReset }) {
     }
   };
 
-  const avgRisk = agent_responses.reduce((s, a) => s + a.risk_score, 0) / agent_responses.length;
+  // Prefer post-debate (revised) scores everywhere, falling back to round 1.
+  const effInterest = (a) => a.revised_interest_score ?? a.interest_score;
+  const effRisk     = (a) => a.revised_risk_score ?? a.risk_score;
+  const effAdoption = (a) => a.revised_adoption_probability ?? a.adoption_probability;
+
+  const avgRisk = agent_responses.reduce((s, a) => s + effRisk(a), 0) / agent_responses.length;
 
   const radarLabels = agent_responses.map(a => {
     const name = a.agent_name.replace(/ Agent$/i, '');
@@ -217,8 +282,8 @@ export default function Dashboard({ report, onReset }) {
   const radarData = {
     labels: radarLabels,
     datasets: [
-      { label: 'Interest (%)', data: agent_responses.map(a => a.interest_score * 10), backgroundColor: 'rgba(99,102,241,0.12)', borderColor: 'rgba(99,102,241,0.8)', borderWidth: 2, pointBackgroundColor: '#6366F1', pointRadius: 3 },
-      { label: 'Adoption (%)', data: agent_responses.map(a => a.adoption_probability), backgroundColor: 'rgba(6,182,212,0.06)', borderColor: 'rgba(6,182,212,0.6)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#06B6D4', pointRadius: 3 },
+      { label: 'Interest (%)', data: agent_responses.map(a => effInterest(a) * 10), backgroundColor: 'rgba(99,102,241,0.12)', borderColor: 'rgba(99,102,241,0.8)', borderWidth: 2, pointBackgroundColor: '#6366F1', pointRadius: 3 },
+      { label: 'Adoption (%)', data: agent_responses.map(a => effAdoption(a)), backgroundColor: 'rgba(6,182,212,0.06)', borderColor: 'rgba(6,182,212,0.6)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#06B6D4', pointRadius: 3 },
     ],
   };
   const radarOpts = {
@@ -345,6 +410,9 @@ export default function Dashboard({ report, onReset }) {
           ))}
         </div>
       </div>
+
+      {/* Debate Room */}
+      <DebateRoom report={report} />
 
       {/* Risk Table */}
       <div className="card" style={{ overflow: 'hidden' }}>

@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 
 const PW = 210, PH = 297, M = 18, CW = 174;
 
@@ -25,7 +25,12 @@ export function generatePDF(report) {
     startup_idea, customer_adoption_probability, investment_interest,
     market_risk, overall_score, agent_responses,
     strengths, weaknesses, opportunities, threats, suggested_improvements,
+    debate_summary,
   } = report;
+
+  // Effective scores prefer the post-debate (revised) value when present.
+  const effInterest = a => a.revised_interest_score != null ? a.revised_interest_score : a.interest_score;
+  const effRisk     = a => a.revised_risk_score != null ? a.revised_risk_score : a.risk_score;
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
@@ -111,6 +116,18 @@ export function generatePDF(report) {
 
   y += bH + 10;
 
+  // ── PANEL CONSENSUS (after debate) ────────────────────────
+  if (debate_summary) {
+    const consLines = wrp(debate_summary, CW - 10, 9);
+    const consH = consLines.length * 4.5 + 13;
+    y = checkY(y, consH + 6);
+    y = sectionTitle('PANEL CONSENSUS  ·  AFTER DEBATE', y);
+    fc([238, 242, 255]); sc(C.blue); lw(0.3);
+    rrect(M, y - 3, CW, consH, 2, 'FD');
+    italic(9, C.gray); txt(consLines, M + 5, y + 3);
+    y += consH + 8;
+  }
+
   // ── RECOMMENDATIONS ───────────────────────────────────────
   y = checkY(y, 20);
   y = sectionTitle('RECOMMENDATIONS', y);
@@ -136,7 +153,7 @@ export function generatePDF(report) {
   y = checkY(y, 55);
   y = sectionTitle('RISK ANALYSIS', y);
 
-  const avgRisk = agent_responses.reduce((s, a) => s + a.risk_score, 0) / agent_responses.length;
+  const avgRisk = agent_responses.reduce((s, a) => s + effRisk(a), 0) / agent_responses.length;
   [
     { label: 'Technical Risk',  s: avgRisk > 6 ? 'High' : avgRisk > 3 ? 'Medium' : 'Low' },
     { label: 'Market Risk',     s: market_risk },
@@ -222,16 +239,14 @@ export function generatePDF(report) {
     fc(i % 2 === 0 ? C.light : C.white); sc(C.border); lw(0.2);
     doc.rect(M, y - 3, CW, cardH, 'FD');
 
-    // Agent name
+    // Agent name (clipped so it can never collide with the badge on the right)
     const agentName = agent.agent_name.replace(/ Agent$/i, '');
-    bold(9.5, C.dark); txt(agentName, M + 5, y + 2);
+    const nameClipped = wrp(agentName, CW - 38, 9.5)[0];
+    bold(9.5, C.dark); txt(nameClipped, M + 5, y + 2);
 
-    // Interest badge
-    const conf = agent.interest_score * 10;
+    // Interest badge (post-debate)
+    const conf = effInterest(agent) * 10;
     badge(`${conf}%`, PW - M - 22, y + 2, scoreCol(conf), scoreColL(conf));
-
-    // Concern label
-    normal(8, C.muted); txt(`Concern: ${agent.concerns[0] || 'None noted'}`, PW - M - 65, y + 2);
 
     // Feedback
     italic(8.5, C.gray); txt(feedLines, M + 5, y + 8);

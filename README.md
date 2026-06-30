@@ -106,6 +106,7 @@ npm install
 
 # Create .env file
 echo "VITE_API_URL=http://localhost:8000" > .env
+echo "VITE_SITE_URL=http://localhost:5173" >> .env
 
 npm run dev
 # Runs on http://localhost:5173
@@ -129,8 +130,12 @@ npm run dev
 1. Connect your GitHub repo in [Vercel](https://vercel.com)
 2. Set **Root Directory** to `frontend`
 3. Add environment variable: `VITE_API_URL = https://your-render-backend.onrender.com`
-4. Deploy — Vercel auto-detects Vite
-
+4. Add environment variable: `VITE_SITE_URL = https://your-frontend-domain.vercel.app`
+5. In Supabase -> Authentication -> URL Configuration:
+   - Set **Site URL** to your deployed frontend URL
+   - Add your deployed frontend URL to **Redirect URLs**
+   - Keep `http://localhost:5173` only for local development
+6. Deploy — Vercel auto-detects Vite
 ---
 
 ## API Endpoints
@@ -171,3 +176,4 @@ Agents use explicit rubrics — a skeptical regulator will score very differentl
 ## Built By
 
 Manikanta Chilaka — College Project, 2025
+
