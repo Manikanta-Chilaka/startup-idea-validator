@@ -1,0 +1,25 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Node
+node_modules/
+
+# Environment files (keep the .example templates)
+.env
+backend/.env
+frontend/.env
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Local tooling / session artifacts
+.playwright-mcp/
+app-home.png
+*.log
+.DS_Store
