@@ -175,5 +175,5 @@ Agents use explicit rubrics — a skeptical regulator will score very differentl
 
 ## Built By
 
-Manikanta Chilaka — College Project, 2025
+Manikanta Chilaka — College Project, 2026
 
