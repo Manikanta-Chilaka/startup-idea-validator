@@ -4,24 +4,21 @@ import logging
 import re
 import os
 from typing import List
-from groq import AsyncGroq
 from dotenv import load_dotenv
 from tavily import TavilyClient
 from models import IdeaInput, AgentResponse, EvaluationReport, Competitor, CompetitorReport
+from llm import LLM
 
 load_dotenv()
 
-MODEL = "llama-3.3-70b-versatile"  # Groq's current recommended model
+# Default model surfaced by the health endpoint (the free Groq default).
+MODEL = "llama-3.3-70b-versatile"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-def _client() -> AsyncGroq:
-    return AsyncGroq(api_key=os.environ["GROQ_API_KEY"])
-
-# Limit concurrent Groq calls to avoid free-tier rate limits (429)
-_groq_sem = asyncio.Semaphore(2)
+# Cap concurrent LLM calls to stay within free-tier rate limits (429).
+_llm_sem = asyncio.Semaphore(4)
 
 
 def _clamp(val, lo: int, hi: int, default: int) -> int:
@@ -48,7 +45,7 @@ def strip_emojis(text: str) -> str:
 
 # ── Core LLM call ────────────────────────────────────────────────────────────
 
-async def call_agent(agent_role: str, role_context: str, evaluation_criteria: str, idea_context: str) -> AgentResponse:
+async def call_agent(llm: LLM, agent_role: str, role_context: str, evaluation_criteria: str, idea_context: str) -> AgentResponse:
     system_prompt = (
         f"You are {agent_role}. {role_context} "
         "You have strong opinions and give honest, critical assessments. "
@@ -81,20 +78,13 @@ async def call_agent(agent_role: str, role_context: str, evaluation_criteria: st
         "opportunities (list of 2-3 strings): specific upsides YOU see\n"
         "feedback (string): 2-3 sentences, blunt and specific to this idea from YOUR perspective"
     )
-    logger.info(f"Calling Groq for agent: {agent_role}")
+    logger.info(f"Calling {llm.provider} for agent: {agent_role}")
     try:
-        async with _groq_sem:
+        async with _llm_sem:
             for attempt in range(3):
                 try:
-                    response = await _client().chat.completions.create(
-                        model=MODEL,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user",   "content": full_prompt},
-                        ],
-                        response_format={"type": "json_object"},
-                        temperature=0.85,
-                        max_tokens=1024,
+                    parsed = await llm.complete_json(
+                        system_prompt, full_prompt, temperature=0.85, max_tokens=1024,
                     )
                     break
                 except Exception as e:
@@ -104,7 +94,6 @@ async def call_agent(agent_role: str, role_context: str, evaluation_criteria: st
                         await asyncio.sleep(wait)
                     else:
                         raise
-        parsed = json.loads(response.choices[0].message.content)
         return AgentResponse(
             agent_name=strip_emojis(agent_role),
             interest_score=int(parsed.get("interest_score", 5)),
@@ -127,7 +116,7 @@ async def call_agent(agent_role: str, role_context: str, evaluation_criteria: st
 
 # ── Agent role generator ──────────────────────────────────────────────────────
 
-async def generate_agent_roles(idea_input: IdeaInput) -> List[dict]:
+async def generate_agent_roles(llm: LLM, idea_input: IdeaInput) -> List[dict]:
     system = (
         "You are an expert startup advisor. Analyse the startup idea and identify "
         "the 4 to 6 most critical stakeholders who should evaluate it for a 360-degree review. "
@@ -143,18 +132,8 @@ async def generate_agent_roles(idea_input: IdeaInput) -> List[dict]:
         "'role', 'context', and 'evaluation_criteria'."
     )
     try:
-        logger.info("Generating agent roles via Groq...")
-        response = await _client().chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user",   "content": user},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.5,
-            max_tokens=1024,
-        )
-        parsed = json.loads(response.choices[0].message.content)
+        logger.info(f"Generating agent roles via {llm.provider}...")
+        parsed = await llm.complete_json(system, user, temperature=0.5, max_tokens=1024)
         agents_list = parsed.get("agents", [])
         if not agents_list:
             raise ValueError("Empty agents list returned")
@@ -226,7 +205,7 @@ def _build_report(idea_input: IdeaInput, agents_data: List[AgentResponse], debat
 
 # ── Debate round (round 2) ────────────────────────────────────────────────────
 
-async def run_debate(idea_context: str, agents_data: List[AgentResponse]) -> tuple[List[AgentResponse], str]:
+async def run_debate(llm: LLM, idea_context: str, agents_data: List[AgentResponse]) -> tuple[List[AgentResponse], str]:
     """A single batched LLM call: every agent sees the others' first-round verdicts and may
     revise its scores. One request keeps us comfortably inside Groq's free-tier limits.
     Mutates and returns agents_data (revised_* fields filled in) plus a consensus summary."""
@@ -261,18 +240,8 @@ async def run_debate(idea_context: str, agents_data: List[AgentResponse]) -> tup
         "  consensus_summary (string, 2-3 sentences: where the panel converged and where it stayed divided)"
     )
     logger.info("Running debate round (batched)...")
-    async with _groq_sem:
-        response = await _client().chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user",   "content": user},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.6,
-            max_tokens=1500,
-        )
-    parsed = json.loads(response.choices[0].message.content)
+    async with _llm_sem:
+        parsed = await llm.complete_json(system, user, temperature=0.6, max_tokens=1500)
 
     by_name = {a.agent_name.lower(): a for a in agents_data}
     for rev in parsed.get("revisions", []):
@@ -315,7 +284,7 @@ def _tavily_search(query: str, max_results: int = 5) -> str:
         return ""
 
 
-async def research_competitors(idea: str) -> CompetitorReport:
+async def research_competitors(llm: LLM, idea: str) -> CompetitorReport:
     # Run two searches in parallel: competitors + market overview
     from datetime import datetime
     current_year = datetime.now().year
@@ -356,17 +325,7 @@ async def research_competitors(idea: str) -> CompetitorReport:
     )
     try:
         logger.info(f"Researching competitors using {source_note}...")
-        response = await _client().chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user",   "content": user},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3,
-            max_tokens=2000,
-        )
-        parsed = json.loads(response.choices[0].message.content)
+        parsed = await llm.complete_json(system, user, temperature=0.3, max_tokens=2000)
         competitors = [
             Competitor(
                 name=strip_emojis(c.get("name", "Unknown")),
@@ -390,16 +349,17 @@ async def research_competitors(idea: str) -> CompetitorReport:
 
 # ── Public entry points ───────────────────────────────────────────────────────
 
-async def evaluate_idea(idea_input: IdeaInput) -> EvaluationReport:
+async def evaluate_idea(llm: LLM, idea_input: IdeaInput) -> EvaluationReport:
     context = (
         f"Startup Idea: {idea_input.idea}\n"
         f"Target Audience: {idea_input.target_audience}\n"
         f"Revenue Model: {idea_input.revenue_model}\n"
         f"Problem Statement: {idea_input.problem_statement}"
     )
-    generated_agents = await generate_agent_roles(idea_input)
+    generated_agents = await generate_agent_roles(llm, idea_input)
     agents_data = list(await asyncio.gather(*[
         call_agent(
+            llm,
             agent_role=s.get("role", "Agent"),
             role_context=s.get("context", ""),
             evaluation_criteria=s.get("evaluation_criteria", ""),
@@ -411,14 +371,14 @@ async def evaluate_idea(idea_input: IdeaInput) -> EvaluationReport:
     debate_summary = ""
     if len(agents_data) > 1:
         try:
-            agents_data, debate_summary = await run_debate(context, agents_data)
+            agents_data, debate_summary = await run_debate(llm, context, agents_data)
         except Exception as e:
             logger.error(f"Debate round failed, using first-round scores: {e}")
 
     return _build_report(idea_input, agents_data, debate_summary)
 
 
-async def stream_evaluate_idea(idea_input: IdeaInput, queue: asyncio.Queue) -> None:
+async def stream_evaluate_idea(llm: LLM, idea_input: IdeaInput, queue: asyncio.Queue) -> None:
     context = (
         f"Startup Idea: {idea_input.idea}\n"
         f"Target Audience: {idea_input.target_audience}\n"
@@ -427,13 +387,14 @@ async def stream_evaluate_idea(idea_input: IdeaInput, queue: asyncio.Queue) -> N
     )
     try:
         await queue.put({"type": "status", "message": "Generating specialised agents for your idea..."})
-        generated_agents = await generate_agent_roles(idea_input)
+        generated_agents = await generate_agent_roles(llm, idea_input)
         await queue.put({"type": "agents_ready", "agents": [a.get("role", "Agent") for a in generated_agents]})
 
         async def run_with_progress(agent_spec):
             name = agent_spec.get("role", "Agent")
             await queue.put({"type": "agent_start", "name": name})
             result = await call_agent(
+                llm,
                 agent_role=name,
                 role_context=agent_spec.get("context", ""),
                 evaluation_criteria=agent_spec.get("evaluation_criteria", ""),
@@ -452,7 +413,7 @@ async def stream_evaluate_idea(idea_input: IdeaInput, queue: asyncio.Queue) -> N
         if len(agents_data) > 1:
             await queue.put({"type": "debate_start", "message": "Agents are debating and reconsidering..."})
             try:
-                agents_data, debate_summary = await run_debate(context, agents_data)
+                agents_data, debate_summary = await run_debate(llm, context, agents_data)
             except Exception as e:
                 logger.error(f"Debate round failed, using first-round scores: {e}")
             await queue.put({"type": "debate_done"})

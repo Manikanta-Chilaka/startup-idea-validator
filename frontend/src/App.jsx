@@ -12,6 +12,7 @@ import ScoreTrend from './components/ScoreTrend';
 import Login from './components/Login';
 import LandingPage from './components/LandingPage';
 import MainDashboard from './components/MainDashboard';
+import ApiKeySettings from './components/ApiKeySettings';
 import { evaluateIdeaStream, checkHealth } from './api';
 import { supabase } from './supabaseClient';
 import { loadEvaluations, saveEvaluation, clearEvaluations } from './supabaseDB';
@@ -421,6 +422,7 @@ export default function App() {
           {!isLoading && activeNav === 'settings' && (
             <div className="space-y-4 animate-fade-in max-w-md">
               <div><p className="section-title">Settings</p><h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginTop: 4, letterSpacing: '-0.02em' }}>Application Settings</h2></div>
+              <ApiKeySettings />
               <div className="card" style={{ overflow: 'hidden' }}>
                 <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
                   <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Connections</p>
